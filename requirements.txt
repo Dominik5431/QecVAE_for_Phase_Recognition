@@ -1,0 +1,11 @@
+matplotlib~=3.8.1
+numpy~=1.26.1
+torch~=2.2.2
+src~=1.0
+scipy~=1.13.0
+stim~=1.14.dev1712965049
+--extra-index-url https://pypi.ngc.nvidia.com
+pathlib~=1.0.1
+torchvision~=0.17.2
+tqdm~=4.66.2
+setuptools~=69.5.1

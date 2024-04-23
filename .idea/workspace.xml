@@ -4,27 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2707365d-dbed-42fc-a2c1-122fa115621b" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/QECthreshold.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/scripts/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/scripts/mainCluster.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/setup.cfg" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/setup.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ErrorCode/ErrorCode.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ErrorCode/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NN/Dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NN/Net.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NN/Predictions.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NN/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NN/utils/Functions.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NN/utils/Plotter.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/NN/utils/__init__.py" afterDir="false" />
+    <list default="true" id="2707365d-dbed-42fc-a2c1-122fa115621b" name="Changes" comment="initial test">
+      <change afterPath="$PROJECT_DIR$/.idea/other.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/scripts/parameters.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/NN/net.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/NN/test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/NN/train.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_dataset.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test_error_code.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/mainCluster.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/mainCluster.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ErrorCode/ErrorCode.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ErrorCode/error_code.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NN/Dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/NN/dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NN/Net.py" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NN/Predictions.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/NN/predictions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NN/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/NN/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NN/utils/Functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/NN/utils/functions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/NN/utils/Plotter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/NN/utils/plotter.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,6 +50,11 @@
     &quot;accountId&quot;: &quot;444d655a-587d-4be4-854d-30bdfcee8634&quot;
   }
 }</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$USER_HOME$/AppData/Local/Programs/Python/Python312/Lib/site-packages/torch/nn/modules/loss.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/AppData/Local/Programs/Python/Python312/Lib/site-packages/torch/nn/modules/module.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$USER_HOME$/AppData/Local/Programs/Python/Python312/Lib/site-packages/torch/utils/data/dataset.py" root0="SKIP_INSPECTION" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
 }</component>
@@ -64,17 +66,30 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Python tests.Python tests in test.py.executor": "Run",
+    "Python tests.Python tests in test_dataset.py.executor": "Debug",
+    "Python tests.Python tests in test_error_code.py.executor": "Run",
     "Python.Temp.executor": "Run",
+    "Python.dataset.executor": "Debug",
     "Python.main.executor": "Run",
+    "Python.net.executor": "Run",
+    "Python.scratch.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "master",
+    "last_opened_file_path": "C:/Users/Dominik/Documents/Uni-Dokumente/Master/2. Semester/Machine Learning/exercise-01",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "terminal",
+    "settings.editor.selected.configurable": "editor.preferences.fonts.default",
     "vue.rearranger.settings.migration": "true"
+  },
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
+      "Python"
+    ]
   }
 }]]></component>
   <component name="RecentsManager">
@@ -101,15 +116,70 @@
       <updated>1712750009615</updated>
       <workItem from="1712750018219" duration="3251000" />
       <workItem from="1712825320666" duration="5509000" />
-      <workItem from="1712849222526" duration="2299000" />
+      <workItem from="1712849222526" duration="2937000" />
+      <workItem from="1713165783029" duration="11836000" />
+      <workItem from="1713254361680" duration="15723000" />
+      <workItem from="1713340899867" duration="9775000" />
+      <workItem from="1713426086908" duration="22171000" />
+      <workItem from="1713712020365" duration="3031000" />
+      <workItem from="1713765825616" duration="30894000" />
     </task>
+    <task id="LOCAL-00001" summary="initial test">
+      <option name="closed" value="true" />
+      <created>1712851598382</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1712851598383</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="initial test" />
+    <option name="LAST_COMMIT_MESSAGE" value="initial test" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/NN/train.py</url>
+          <line>11</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/NN/net.py</url>
+          <line>62</line>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+    <watches-manager>
+      <configuration name="PythonConfigurationType">
+        <watch expression="x" />
+      </configuration>
+    </watches-manager>
+  </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/QECthreshold$main.coverage" NAME="main Coverage Results" MODIFIED="1712850541946" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
+    <SUITE FILE_PATH="coverage/QECthreshold$main.coverage" NAME="main Coverage Results" MODIFIED="1713876917906" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/QECthreshold$Temp.coverage" NAME="Temp Coverage Results" MODIFIED="1712750651989" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/QECthreshold$dataset.coverage" NAME="dataset Coverage Results" MODIFIED="1713520804422" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/NN" />
+    <SUITE FILE_PATH="coverage/QECthreshold$net.coverage" NAME="net Coverage Results" MODIFIED="1713530114638" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/NN" />
+    <SUITE FILE_PATH="coverage/QECthreshold$scratch.coverage" NAME="scratch Coverage Results" MODIFIED="1713519540327" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
+    <SUITE FILE_PATH="coverage/QECthreshold$.coverage" NAME=" Coverage Results" MODIFIED="1713519287553" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
   </component>
 </project>

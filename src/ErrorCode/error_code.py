@@ -1,24 +1,24 @@
 from abc import ABC, abstractmethod
 import stim
 import numpy as np
-from Functions import Functions
-import tensorflow as tf
-
-
-def test():
-    print("Hello")
+import src.NN.utils.functions as functions
 
 
 class QECCode(ABC):
-
     def __init__(self, distance, noise):
         self.distance = distance
         self.noise = noise
         if distance % 2 == 0:
             raise ValueError("Not optimal distance.")
+        self.circuit = self.create_code_instance()
+
+    def circuit_to_png(self):
+        diagram = self.circuit.diagram('timeline-svg')
+        with open('diagram.svg', 'a') as f:
+            f.write(diagram.__str__())
 
     @abstractmethod
-    def get_code_instance(self):
+    def create_code_instance(self):
         raise NotImplementedError("Subclasses should implement this!")
 
     @abstractmethod
@@ -27,18 +27,16 @@ class QECCode(ABC):
 
 
 class RotatedSurfaceCode(QECCode, ABC):
-
     def __init__(self, distance, noise):
         super().__init__(distance, noise)
 
 
 class BitFlipSurface(RotatedSurfaceCode):
-
     def __init__(self, distance, noise):
         super().__init__(distance, noise)
-        self.syndromes = Functions.number_syndromes(self.distance)
+        self.syndromes = functions.number_syndromes(self.distance)
 
-    def get_code_instance(self):
+    def create_code_instance(self):
         circuit = stim.Circuit()
         # initialize qubits in |0> state
         # data qubits
@@ -138,24 +136,18 @@ class BitFlipSurface(RotatedSurfaceCode):
         return circuit
 
     def get_syndromes(self, n):
-        labels = np.zeros((n, 2))
-        circuit = self.get_code_instance()
-        sampler = circuit.compile_sampler()
+        sampler = self.circuit.compile_sampler()
         syndromes = sampler.sample(shots=n)  # shape n x syndrom
-        labels[:, 0] = np.zeros(np.shape(syndromes[:, 0])) if self.noise > 0.109 else np.ones(
-            np.shape(syndromes[:, 0]))
-        labels[:, 1] = np.ones(np.shape(syndromes[:, 0])) if self.noise > 0.109 else np.zeros(
-            np.shape(syndromes[:, 0]))
-        return syndromes, labels
+        return syndromes
 
 
 class DepolarizingSurface(RotatedSurfaceCode):
 
     def __init__(self, distance, noise):
         super().__init__(distance, noise)
-        self.syndromes = 2 * Functions.number_syndromes(self.distance)
+        self.syndromes = 2 * functions.number_syndromes(self.distance)
 
-    def get_code_instance(self):
+    def create_code_instance(self):
         circuit = stim.Circuit()
         # initialize qubits in |0> state
         # data qubits
@@ -263,7 +255,7 @@ class DepolarizingSurface(RotatedSurfaceCode):
                 bias = 0 if shift else 1
                 circuit.append("CX",
                                [int(i * (self.distance - 1) / 2 + j + self.distance ** 2 + (
-                                           self.distance ** 2 - 1) / 2),
+                                       self.distance ** 2 - 1) / 2),
                                 int(i + 2 * j * self.distance + bias * self.distance)])
                 circuit.append("CX",
                                [int(i * (self.distance - 1) / 2 + j + self.distance ** 2 + (
@@ -294,18 +286,6 @@ class DepolarizingSurface(RotatedSurfaceCode):
         return circuit
 
     def get_syndromes(self, n):
-        labels = np.zeros((n, 2))
-        circuit = self.get_code_instance()
-        sampler = circuit.compile_sampler()
+        sampler = self.circuit.compile_sampler()
         syndromes = sampler.sample(shots=n)  # shape n x syndrom
-        labels[:, 0] = np.zeros(np.shape(syndromes[:, 0])) if self.noise > 0.189 else np.ones(
-            np.shape(syndromes[:, 0]))
-        labels[:, 1] = np.ones(np.shape(syndromes[:, 0])) if self.noise > 0.189 else np.zeros(
-            np.shape(syndromes[:, 0]))
-        return syndromes, labels
-
-    def circuit_to_png(self):
-        circuit = self.get_code_instance()
-        diagram = circuit.diagram('timeline-svg')
-        with open('diagram.svg', 'a') as f:
-            f.write(diagram.__str__())
+        return syndromes
