@@ -1,4 +1,3 @@
-import numpy as np
 import pickle
 from pathlib import Path
 
@@ -17,6 +16,8 @@ class Predictions:
     def save(self):
         with open(str(Path().resolve().parent) + "/data/" + self.name + ".pkl", 'ab') as fp:
             pickle.dump(self.dict, fp)
+        # with open("data/" + self.name + ".pkl", 'ab') as fp:
+        #    pickle.dump(self.dict, fp)
 
     def load(self):
         try:
@@ -25,10 +26,14 @@ class Predictions:
                     self.dict = pickle.load(fp)
                 except EOFError:
                     self.dict = {}
+            # with open("data/" + self.name + ".pkl", 'rb+') as fp:
+            #    try:
+            #        self.dict = pickle.load(fp)
+            #    except EOFError:
+            #        self.dict = {}
         except FileNotFoundError:
             self.dict = {}
         return self
 
     def get_dict(self):
         return self.dict
-

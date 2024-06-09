@@ -1,48 +1,15 @@
 import torch
 from torch.utils.data import Dataset
-from torchvision.transforms import ToTensor
-from abc import ABC, abstractmethod
-from src.ErrorCode.error_code import BitFlipSurface, DepolarizingSurface
 import numpy as np
-import logging
-from pathlib import Path
+from .qecdata import QECDataset
+from src.error_code import DepolarizingSurfaceCode
 
 
-class QECDataset(Dataset, ABC):
-    def __init__(self, distance: int, noises, name: str, num: int, load: bool):
-        super().__init__()
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.distance = distance
-        self.noises = noises
-        self.name = name
-        if load:
-            self.syndromes = None
-            try:
-                self.load()
-            except NameError as N:
-                logging.error("No valid noise model specified.")
-        else:
-            self.syndromes = self.generate_data(num, 10)
-        if not (type(name) is str):
-            raise ValueError
+# TODO cross-check with code in bitflip.py upon changes I made when adapting the respective code
 
-    def save(self):
-        torch.save(self.syndromes, str(Path().resolve().parent) + "/data/syndromes_{0}.pt".format(self.name))
-
-    def load(self):
-        self.syndromes = torch.load(str(Path().resolve().parent) + "/data/syndromes_{0}.pt".format(self.name))
-
-    def get_syndromes(self):
-        return self.syndromes
-
-    @abstractmethod
-    def generate_data(self, n, rounds):
-        raise NotImplementedError
-
-
-class BitFlipSurfaceData(QECDataset):
-    def __init__(self, distance, noises, name, num, load: bool):
-        super().__init__(distance, noises, name, num, load)
+class DepolarizingSurfaceData(QECDataset):
+    def __init__(self, distance, noises, name, num, load, random_flip):
+        super().__init__(distance, noises, name, num, load, random_flip)
 
     def __len__(self):
         return self.syndromes.size(dim=0)
@@ -50,40 +17,25 @@ class BitFlipSurfaceData(QECDataset):
     def __getitem__(self, index):
         return self.syndromes[index]
 
-    def generate_data(self, num, rounds):
-        def ising_shape(arr):
-            result = np.zeros((1, self.distance - 1, self.distance))
-            shift = -1
-            for k in np.arange(self.distance + 1):
-                if k % 2 == 0:
-                    shift += 1
-                for j in np.arange(int((self.distance - 1) / 2)):
-                    result[0, j + shift, -int((self.distance - 1) / 2) + j - k + shift] = arr[
-                        k * int((self.distance - 1) / 2) + j]
-            return result
-
-        # Important: generate data alternating between noise, otherwise data will be ordered as labels = [0, ..., 0, 1, ..., 1]
-        # Shuffling with limited buffer_size then will not mix 0 and 1 labels, shuffling with buffer over whole data set negates the effect of memory saving since the memory occupancy will be too large for large datasets
-        syndromes = []
-        for _ in np.arange(rounds):
-            for noise in self.noises:
-                code = BitFlipSurface(self.distance, noise)
-                syndromes = syndromes + list(code.get_syndromes(int(num / rounds)))
-        syndromes = list(map(lambda x: np.where(x, -1, 1), syndromes))
+    def generate_data(self, n, rounds):
+        syndromes = []  # deleted rounds, TODO check if shuffling is really doing the proper thing here
+        for noise in self.noises:
+            code = DepolarizingSurfaceCode(self.distance, noise, self.random_flip)
+            syndromes = syndromes + list(code.get_syndromes(n))
         # Bring data into right shape
-        syndromes_new = np.zeros((len(syndromes), 1, self.distance - 1, self.distance))  # In torch, batch has indices (N,C,H,W)
-        for i, elm in enumerate(syndromes):
-            syndromes_new[i] = ising_shape(elm)
-        return torch.as_tensor(syndromes_new, device=self.device)
+        # In torch, batch has indices (N,C,H,W)
+        syndromes = np.reshape(np.array(syndromes), (n * len(self.noises), 2, self.distance, self.distance))
+        return torch.as_tensor(syndromes, device=self.device, dtype=torch.double)
 
     def get_train_test_data(self, ratio):  # think about if really necessary or if there is a nicer solution
-        dataset_train, dataset_val = torch.utils.data.random_split(self, [ratio - 1/len(self), 1 - ratio + 1/len(self)])
+        dataset_train, dataset_val = torch.utils.data.random_split(self,
+                                                                   [ratio - 1 / len(self), 1 - ratio + 1 / len(self)])
         return dataset_train, dataset_val
 
 
-class DepolarizingSurfaceData(QECDataset):
-    def __init__(self, distance, noises, name, num):
-        super().__init__(distance, noises, name, num)
+class DepolarizingRotatedSurfaceData(QECDataset):
+    def __init__(self, distance, noises, name, num, load, random_flip):
+        super().__init__(distance, noises, name, num, load, random_flip)
 
     def generate_data(self, num, rounds):
         # Important: generate data alternating between noise, otherwise data will be ordered as labels = [0, ..., 0,
@@ -130,7 +82,6 @@ class DepolarizingSurfaceData(QECDataset):
             for noise in self.noises:
                 code = DepolarizingSurface(self.distance, noise)
                 syndromes = syndromes + code.get_syndromes(int(num / rounds))
-        syndromes = list(map(lambda x: torch.where(x, -1, 1), syndromes))
         # Bring data into right shape
         syndromes_new = np.zeros((len(syndromes), self.distance + 1, self.distance + 1, 3))
         # 1: all stabilizers, 2: only Z stabilizers, 3: only X stabilizers # TODO change this since we use VAEs now

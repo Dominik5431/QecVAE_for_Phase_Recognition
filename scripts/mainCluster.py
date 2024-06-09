@@ -1,94 +1,80 @@
-import argparse
-
-from scipy.stats import sem
-import NN
-import Dataset
-import numpy as np
 import sys
-import pickle
-import gc
-import Predictions
+import torch
+from src.nn.data import BitFlipSurfaceData
+from src.nn.net import VariationalAutoencoder
+from src.nn.data.predictions import Predictions
+from src.nn.test import test_model_latent_space, test_model_reconstruction_error
+from src.nn.train import train
+from src.nn.utils.loss import loss_func
+from src.nn.utils.optimizer import make_optimizer
+from parameters import parameters
+from tqdm import tqdm
 
-
-gc.enable()
-layout = 3
-load_model = True
-ratio = 0.8
-batch_size = 100
-epochs = [10, 10, 7, 7, 4, 4]
-filters = 10
-rounds = 10
-
-d_str = sys.argv[1]
-d = int(d_str)
-
-epochs = epochs[d]
-distances = [15, 21, 27, 33, 39, 45]
-distance = distances[d]
-#noises = np.array([0.05, 0.20])
-noises = np.array([0.12, 0.26]) # for depolarizing noise training
-n = 100000
-
-
-def collect_data(dist):
-    name = "DS-{0}-lay{1}".format(dist, layout)
-    dataset = Dataset.DepolarizingSurfaceData(dist, noises, name)
-    dataset.generate_data(n, rounds)
-    dataset.prepare_data(layout)
-    train, val = dataset.get_training_data(ratio, batch_size)
-    return train, val
-
+NOISE_MODEL = 'BitFlip'
+structures = ['standard', 'simple', 'skip', 'ising']
+betas = [0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000]
+distances = [15, 21, 27, 33, 37, 43]
 
 def train_model():
-    net = NN.CNNDepolarizing(distance, filters, layout)
-    if load_model:
-        try:
-            net.load(layout)
-        except Exception:
-            pass
-    for i in np.arange(5):
-        train, val = collect_data(distance)
-        history = net.train(train, val, epochs)
-        with open('files/historyDepolarizing_d={0}_iter={1}.pkl'.format(distance, i), 'wb') as fp:
-            pickle.dump(history, fp)
-    net.save(layout)
+    if NOISE_MODEL == 'BitFlip':
+        # data_train, data_val = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
+        data_train, data_val = BitFlipSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
+                                                  name=name_data.format(DISTANCE),
+                                                  num=DATA_SIZE, load=False,
+                                                  random_flip=random_flip).get_train_test_data(RATIO)
+    model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE), structure=structure, noise=NOISE_MODEL)
+    model = train(model, make_optimizer(LR), loss_func, NUM_EPOCHS, BATCH_SIZE, data_train, data_val, beta)
+
+def latents():
+    model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE), structure=structure, noise=NOISE_MODEL)
+    model.load()
+    # Use dictionary with noise value and return values to store return data from VAE while testing
+    latents = Predictions(name=name_dict_latent)
+    latents.load()
+    results = {}
+    for noise in tqdm(NOISES_TESTING):
+        # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
+        data_test = BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
+                                       name="BFS_Testing-{0}".format(DISTANCE),
+                                       num=1000, load=False, random_flip=random_flip)
+        results[noise] = test_model_latent_space(model, data_test)  # z_mean, z_logvar, z, z_bar, z_bar_var
+    latents.add(DISTANCE, results)
+    latents.save()
 
 
-def make_predictions(noise_min=0.01, noise_max=0.30, resolution=0.002, n_pred=50000):
-    nn = NN.CNNDepolarizing(distance, filters, layout)
-    nn.load(layout)
-    noise_arr = np.arange(noise_min, noise_max, resolution)
-    predics = np.zeros((len(noise_arr), 2))
-    predics_err = np.zeros((len(noise_arr), 2))
-    for k, noise in enumerate(noise_arr):
-        syndromes = (Dataset.DepolarizingSurfaceData(distance, [noise], "pred_data")
-                     .generate_data(n_pred, 1)
-                     .prepare_data(layout)
-                     .get_syndromes(batch_size))
-        temp = nn.predict(syndromes)  # temp has shape (len(syndromes),2)
-        del syndromes
-        gc.collect()
-        predics[k, :] = np.mean(temp, axis=0)
-        predics_err[k, :] = sem(temp, axis=0)
-    dictionary = Predictions.Predictions()
-    dictionary.add(distance, (predics, predics_err))
-    dictionary.save()
+def reconstructions():
+    model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE), structure=structure, noise=NOISE_MODEL)
+    model.load()
+    # Use dictionary with noise value and return values to store return data from VAE while testing
+    reconstructions = Predictions(name=name_dict_recon)
+    reconstructions.load()
+    results = {}
+    for noise in tqdm(NOISES_TESTING):
+        # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
+        data_test = BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
+                                       name="BFS_Testing-{0}".format(DISTANCE),
+                                       num=1000, load=False, random_flip=random_flip)
+        results[noise] = test_model_reconstruction_error(model, data_test, torch.nn.MSELoss())  # avg_loss
+    reconstructions.add(DISTANCE, results)
+    reconstructions.save()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=int, default=4, help="Task number")
-    parser.add_argument("--noise", type=str, default="Depolarizing", help="Noise model")  # Bit-Flip vs Depolarizing
-    parser.add_argument("--num_epochs", type=int, default=10,
-                        help="Number of training epochs")
-    parser.add_argument("--data_size", type=int, default=3000, help="Dataset size")  # should be 10,000
-    parser.add_argument("--batch_size", type=int, default=100, help="Training batch size")
-    parser.add_argument("--lr", type=float, default=0.005, help="Learning rate")
-    parser.add_argument("--optimizer", type=str, default="Adam", help="Optimizer")
-    parser.add_argument("--dist", type=int, default=33, help="Distance of QEC code")
-    parser.add_argument("--load_data", type=bool, default=False, help="Specifies whether to generate the needed "
-                                                                      "data or to load pregenerated dataset")
-    parser.add_argument("--save_data", type=bool, default=False, help="Specifies whether to save used dataset")
-    parsed, unparsed = parser.parse_known_args()
-    # train_model()
-    # make_predictions()
+    random_flip, LR, NOISE_MODEL, NUM_EPOCHS, BATCH_SIZE, DATA_SIZE, DISTANCE, LOAD_DATA, SAVE_DATA, NOISES_TRAINING, NOISES_TESTING, RATIO, LATENT_DIMS = parameters()
+    # TODO add parser again
+    # s = sys.argv[1]
+    s = 3
+    s = int(s)
+
+    DISTANCE = distances[s]
+    structure = structures[2]
+    beta = betas[7]
+
+    name_data = "BFS_2-{0}"
+    name_dict_recon = "reconstruction_bitflip_" + structure + "_dim" + str(LATENT_DIMS) + "discrete" + str(DISTANCE)
+    name_dict_latent = "latents_bitflip_" + structure + "_dim" + str(LATENT_DIMS) + "discrete" + str(DISTANCE)
+    name_VAE = "VAE_" + structure + "_dim" + str(LATENT_DIMS) + "discrete-{0}"
+
+    train_model()
+    latents()
+    reconstructions()

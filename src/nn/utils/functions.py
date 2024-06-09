@@ -3,10 +3,6 @@ from scipy.optimize import minimize, brentq
 from scipy.interpolate import UnivariateSpline
 
 
-def number_syndromes(distance):
-    return int((distance ** 2 - 1) / 2)
-
-
 def gaussian(x, A, mu, sigma):
     return A * np.exp(-(x - mu) ** 2 / sigma ** 2)
 
@@ -23,10 +19,11 @@ def linear(x, m, n):
     return m * x + n
 
 
-def smooth(arr):
+def smooth(arr, m):
     res = arr.copy()
-    for i in np.arange(1, len(arr) - 1):
-        res[i] = 1 / 3 * (arr[i - 1] + arr[i] + arr[i + 1])
+    # TODO test this function
+    for i in np.arange(int((m - 1) / 2), len(arr) - int((m - 1) / 2)):
+        res[i] = 1 / m * np.sum(arr[i - int((m - 1) / 2): i + int((m - 1) / 2) + 1])
     return res
 
 
@@ -144,10 +141,10 @@ def get_pcs(dictionary, noises):
         # print(predictions[i])
         # result[i, 1] = cls.find_crossing(noises, predictions[i])
         result[i, 1], result[i, 2] = get_crossing_bootstrap(noises, predictions[i, :, 0],
-                                                                predictions_err[i, :, 0],
-                                                                noises,
-                                                                predictions[i, :, 1], predictions_err[i, :, 1], 0,
-                                                                0.3)
+                                                            predictions_err[i, :, 0],
+                                                            noises,
+                                                            predictions[i, :, 1], predictions_err[i, :, 1], 0,
+                                                            0.3)
     return result
 
 
@@ -207,7 +204,7 @@ def get_crossing_bootstrap(x1, y1, err1, x2, y2, err2, xmin, xmax):
     samples = []
     for n in range(nsamples):
         x_sample = get_crossing_mean(x1, np.random.normal(loc=y1, scale=err1), err1, x2,
-                                         np.random.normal(loc=y2, scale=err2), err2, xmin, xmax)
+                                     np.random.normal(loc=y2, scale=err2), err2, xmin, xmax)
         if np.isfinite(x_sample):
             samples.append(x_sample)
 

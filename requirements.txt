@@ -9,3 +9,5 @@ pathlib~=1.0.1
 torchvision~=0.17.2
 tqdm~=4.66.2
 setuptools~=69.5.1
+seaborn~=0.13.2
+hiddenlayer~=0.3

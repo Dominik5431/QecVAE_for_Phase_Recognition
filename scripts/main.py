@@ -1,106 +1,310 @@
 import sys
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-from scipy.stats import sem
 from parameters import parameters
 import torch
-from torch.optim import Optimizer
+from torch.utils.data import DataLoader
 from tqdm import tqdm
+import hiddenlayer as hl
+# import mmcv
 
-import src.NN.utils.functions as functions
-from src.NN.dataset import BitFlipSurfaceData
-from src.NN.net import VariationalAutoencoder
-from src.NN.utils.plotter import scatter_latent_var
-from src.NN.train import train
-from src.NN.test import test_model_latent_space, test_model_reconstruction_error
-from src.NN.utils import plotter
-from src.NN.predictions import Predictions
+import src.nn.utils.functions as functions
+from src.nn import DepolarizingSurfaceData, BitFlipSurfaceData
+from src.nn import VariationalAutoencoder
+from src.nn.utils.plotter import plot_latent_mean, scatter_latent_var, plot_reconstruction_error, \
+    plot_latent_susceptibility, plot_reconstruction_derivative, plot_reconstruction, plot_collapsed, \
+    plot_mean_variance_samples
+from src.nn.train import train
+from src.nn.test import test_model_latent_space, test_model_reconstruction_error
+from src.nn import Predictions
+from src.error_code import BitFlipSurfaceCode, DepolarizingSurfaceCode, SurfaceCodePheno
+from src.nn.utils.loss import loss_func
+from src.nn.utils.optimizer import make_optimizer
+from src.nn.utils.functions import smooth
 
 import numpy as np
-import gc
-import argparse
 import logging
 
 
-def predicting(noise_min, noise_max, resolution, n_pred, nn):
-    noise_arr = np.arange(noise_min, noise_max, resolution)
-    predics = np.zeros((len(noise_arr), 2))
-    predics_err = np.zeros((len(noise_arr), 2))
-    for k, noise in enumerate(noise_arr):
-        syndromes = (Dataset.DepolarizingSurfaceData(parsed.dist, [noise], "pred_data")
-                     .generate_data(n_pred, 1)
-                     .prepare_data(LAYOUT)
-                     .get_syndromes(parsed.batch_size))
-        temp = nn.predict(syndromes)  # temp has shape (len(syndromes),2)
-        del syndromes
-        gc.collect()
-        predics[k, :] = np.mean(temp, axis=0)
-        predics_err[k, :] = sem(temp, axis=0)
-    return predics, predics_err
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
+def prepare_data():
+    logging.debug("Create data.")
+    if NOISE_MODEL == 'BitFlip':
+        # data = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
+        data = BitFlipSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
+                                  num=DATA_SIZE, load=False, random_flip=random_flip)
+        data.save()
+    elif NOISE_MODEL == 'Depolarizing':
+        data = DepolarizingSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
+                                       num=DATA_SIZE, load=False, random_flip=random_flip)
+        data.save()
+    elif NOISE_MODEL == 'Phenomenological':
+        data = None
 
 
-def make_optimizer(lr):
-    return lambda params: torch.optim.Adam(params, lr=lr)
+def train_network():
+    logging.debug("Get data.")
+    data_train = None
+    data_val = None
+    if NOISE_MODEL == 'BitFlip':
+        # data_train, data_val = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
+        data_train, data_val = BitFlipSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
+                                                  name=name_data.format(DISTANCE),
+                                                  num=DATA_SIZE, load=LOAD_DATA,
+                                                  random_flip=random_flip).get_train_test_data(RATIO)
+    elif NOISE_MODEL == 'Depolarizing':
+        data_train, data_val = DepolarizingSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
+                                                       name=name_data.format(DISTANCE),
+                                                       num=DATA_SIZE, load=LOAD_DATA,
+                                                       random_flip=random_flip).get_train_test_data(RATIO)
+    logging.debug("Train nn.")
+    assert data_train is not None
+    assert data_val is not None
+    net = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE), structure=structure,
+                                 noise=NOISE_MODEL)
+    net = train(net, make_optimizer(LR), loss_func, NUM_EPOCHS, BATCH_SIZE, data_train, data_val, beta)
+    return net
 
 
-name_dict = "latents_bitflip_test_fc_only"
+def evaluate_latent_space():
+    logging.debug("Evaluate latent space.")
+    model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE), structure=structure,
+                                   noise=NOISE_MODEL)
+    model.load()
+    # Use dictionary with noise value and return values to store return data from VAE while testing
+    latents = Predictions(name=name_dict_latent)
+    latents.load()
+    results = {}
+    for noise in tqdm(NOISES_TESTING):
+        data_test = None
+        if NOISE_MODEL == 'BitFlip':
+            # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
+            data_test = BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
+                                           name="BFS_Testing-{0}".format(DISTANCE),
+                                           num=100, load=False, random_flip=random_flip)
+        elif NOISE_MODEL == 'Depolarizing':
+            data_test = DepolarizingSurfaceData(distance=DISTANCE, noises=[noise],
+                                                name="DS_Testing-{0}".format(DISTANCE),
+                                                num=1000, load=False, random_flip=random_flip)
+        assert data_test is not None
+        results[noise] = test_model_latent_space(model, data_test)  # z_mean, z_log_var, z, z_bar, z_bar_var
+    latents.add(DISTANCE, results)
+    latents.save()
 
 
-def loss_func(output, target: torch.Tensor) -> torch.Tensor:
-    # reproduction_loss = torch.nn.functional.binary_cross_entropy(output, target, reduction='sum') -> try if this works better
-    # kldivloss = torch.nn.functional.kl_div(output, target, reduction='sum')  # is this really doing the right thing? -> no defined as pointwise KL divergence loss, put in tensors of points that are distributed according to the distributions Q and P whose KL divergence loss is to be calculated
-    reproduction_loss = torch.nn.MSELoss()
-    recon, mean, logvar = output
-    kldivloss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-    return reproduction_loss(recon, target) + kldivloss
+def evaluate_reconstruction_error():
+    logging.debug("Evaluate reconstruction error.")
+    model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE), structure=structure,
+                                   noise=NOISE_MODEL)
+    model.load()
+    # Use dictionary with noise value and return values to store return data from VAE while testing
+    reconstructions = Predictions(name=name_dict_recon)
+    reconstructions.load()
+    results = {}
+    for noise in tqdm(NOISES_TESTING):
+        data_test = None
+        if NOISE_MODEL == 'BitFlip':
+            # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
+            data_test = BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
+                                           name="BFS_Testing-{0}".format(DISTANCE),
+                                           num=100, load=False, random_flip=random_flip)
+        elif NOISE_MODEL == 'Depolarizing':
+            data_test = DepolarizingSurfaceData(distance=DISTANCE, noises=[noise],
+                                                name="DS_Testing-{0}".format(DISTANCE),
+                                                num=100, load=False, random_flip=random_flip)
+        results[noise] = test_model_reconstruction_error(model, data_test,
+                                                         torch.nn.MSELoss(reduction='none'))  # avg_loss, variance
+    reconstructions.add(DISTANCE, results)
+    reconstructions.save()
+
+
+def mean_variance_samples():
+    results = {}
+    for noise in tqdm(NOISES_TESTING):
+        if NOISE_MODEL == 'BitFlip':
+            # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
+            data_test = BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
+                                           name="BFS_Testing-{0}".format(DISTANCE),
+                                           num=1000, load=False, random_flip=random_flip)
+            mean = torch.mean(data_test.syndromes, dim=(1, 2, 3))
+            var = torch.var(data_test.syndromes, dim=(1, 2, 3))
+            results[noise] = (mean, var)
+        elif NOISE_MODEL == 'Depolarizing':
+            data_test = DepolarizingSurfaceData(distance=DISTANCE, noises=[noise],
+                                                name="DS_Testing-{0}".format(DISTANCE),
+                                                num=1000, load=False, random_flip=random_flip)
+            mean = torch.mean(data_test.syndromes, dim=(2, 3))
+            var = torch.var(data_test.syndromes, dim=(2, 3))
+            results[noise] = (mean, var)
+    raw = Predictions(name="mean_variance_" + str(NOISE_MODEL).lower() + "_" + str(DISTANCE))
+    raw.add(DISTANCE, results)
+    raw.save()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    plt.set_loglevel("notset")
+    logger = logging.getLogger('vae_threshold')
+    logger.setLevel(level=logging.DEBUG)
+    fh = logging.StreamHandler()
+    fh_formatter = logging.Formatter('%(asctime)s %(levelname)s %(lineno)d:%(filename)s(%(process)d) - %(message)s')
+    fh.setFormatter(fh_formatter)
+    logger.addHandler(fh)
+    # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    # plt.set_loglevel("notset")
 
-    LR, NOISE_MODEL, NUM_EPOCHS, BATCH_SIZE, DATA_SIZE, DISTANCE, LOAD_DATA, SAVE_DATA, NOISES_TRAINING, NOISES_TESTING, RATIO, LATENT_DIMS = parameters()
-    task = 3
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    random_flip, LR, NOISE_MODEL, NUM_EPOCHS, BATCH_SIZE, DATA_SIZE, DISTANCE, LOAD_DATA, SAVE_DATA, NOISES_TRAINING, NOISES_TESTING, RATIO, LATENT_DIMS = parameters()
+
+    structures = ['standard', 'simple', 'skip', 'ising']
+    structure = structures[2]
+
+    name_data = "BFS_T_0-{0}"
+    # name_dict_recon = "reconstruction_bitflip_" + structure + "_dim" + str(LATENT_DIMS) + "_log_1-33"
+    # name_dict_latent = "latents_bitflip_" + structure + "_dim" + str(LATENT_DIMS) + "_log_1-33"
+    # name_VAE = "VAE_" + structure + "_dim" + str(LATENT_DIMS) + "_log_1-{0}"
+
+    beta = 500
+
+    name_dict_latent = "final2/latents_bitflip_skip_dim1f227"
+    name_dict_recon = "old2/reconstruction_bitflip_randomFlip_deep_dim1"
+    name_VAE = "final2/net_VAE_skip_dim1f2-{0}"
+
+    task = 0
     if task == 0:  # Create data
-        logging.debug("Create data.")
-        if NOISE_MODEL == 'BitFlip':
-            data = BitFlipSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING, name="BFS_1-{0}".format(DISTANCE),
-                                      num=DATA_SIZE, load=LOAD_DATA)
-            data.save()
+        prepare_data()
     elif task == 1:  # Training a network
-        logging.debug("Get data.")
-        if NOISE_MODEL == 'BitFlip':
-            data_train, data_val = BitFlipSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
-                                                      name="BFS_Test-{0}".format(DISTANCE),
-                                                      num=DATA_SIZE, load=LOAD_DATA).get_train_test_data(RATIO)
-        logging.debug("Train NN.")
-        model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, "VAE-fc_only-{0}".format(DISTANCE))
-        model = train(model, make_optimizer(LR), loss_func, NUM_EPOCHS, BATCH_SIZE, data_train, data_val)
-        model.save()
-
+        train_network()
     elif task == 2:  # Testing a network
-        logging.debug("Get data.")
-        '''if NOISE_MODEL == 'BitFlip':
-            data_train, data_val = BitFlipSurfaceData(distance=DISTANCE, noises=NOISES,
-                                                      name="BFS_Test-{0}".format(DISTANCE),
-                                                      num=DATA_SIZE, load=LOAD_DATA).get_train_test_data(RATIO)'''
-        logging.debug("Evaluate latent space.")
-        model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, "VAE-fc_only-{0}".format(DISTANCE))
-        model.load()
-        # Use dictionary with noise value and return values to store return data from VAE while testing
-        latents = Predictions(name=name_dict)
-        latents.load()
-        results = {}
-        for noise in tqdm(NOISES_TESTING):
-            data_test = BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
-                                           name="BFS_Testing-{0}".format(DISTANCE),
-                                           num=20, load=False)
-            results[noise] = test_model_latent_space(model, data_test)  # z_mean, z_logvar, z_bar, z_bar_var
-        latents.add(DISTANCE, results)
-        latents.save()
-
+        evaluate_latent_space()
+    elif task == 20:  # Test network via reconstruction loss
+        evaluate_reconstruction_error()
     elif task == 3:  # plot latent space, computed in task 2
-        scatter_latent_var(Predictions(name=name_dict).load().get_dict())
+        test = Predictions(name=name_dict_latent).load().get_dict()
+        plot_latent_mean(test, random_flip, structure)
+        plot_latent_susceptibility(test, random_flip, structure)
+        scatter_latent_var(test, random_flip, structure)
+    elif task == 30:  # plot reconstruction error, computed in task 20
+        recon = Predictions(name=name_dict_recon).load().get_dict()
+        plot_reconstruction_error(recon, random_flip, structure)
+        plot_reconstruction_derivative(recon, random_flip, structure)
+    elif task == 31:
+        dists = [9, 15, 21, 27, 33]
+        # dists = [15, 21, 27, 33, 37, 43]
+        fig, ax1 = plt.subplots()
+        ax2 = ax1.twinx()
+        coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink']
+        for i, dist in enumerate(dists):
+            print(dist)
+            print("latents_bitflip_skip_dim1f2" + str(dist))
+            latents = Predictions(name="final2/latents_bitflip_skip_dim1f2" + str(dist)).load().get_dict()
+            noises = list(latents[dist].keys())
+            noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
+            latent = list(latents[dist].values())
+            # print(latent[0][3].cpu().detach().numpy())
+            # if latent[0][3].cpu().detach().numpy().ndim == 0:
+            if len(latent[0][3].cpu().detach().numpy()) == 1:
+                means = np.array(list(map(lambda x: torch.mean(torch.abs(x[0])).cpu().detach().numpy(), latent)))
+                ax1.plot(noises, means, label=str(dist), color=coloring[i])
+                print(dist)
+                der = dist * ((np.array(list(map(lambda x: torch.mean(x[0] ** 2).cpu().detach().numpy(), latent))) -
+                               np.array(list(
+                                   map(lambda x: torch.mean(torch.abs(x[0])).cpu().detach().numpy() ** 2, latent))))[
+                              1:])
+                #ax2.plot(noises[2:], der[1:], label=str(dist), color=coloring[i])
+                # plt.ylim([-0.00001, 0.00001])
+                ax1.set_xlabel('associated temperature')
+                ax1.set_ylabel(r'mean $\langle | \mu | \rangle$')
+                ax2.set_ylabel(r' susceptibility $d \cdot \chi$')
+                plt.vlines(0.95, 0, 2.7, colors='red', linestyles='dashed')
+                plt.xlim(0, 2)
+                # plt.xscale('log')
+                if random_flip:
+                    plt.title(structure + " + random flip")
+                else:
+                    plt.title(structure)
+        plt.legend()
+        fig.tight_layout()
+        plt.show()
+
+    elif task == 32:
+        dists = [9, 15, 21, 27, 33]
+        # dists = [15, 21, 27, 33, 37, 43]
+        fig, ax1 = plt.subplots()
+        ax2 = ax1.twinx()
+        coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink']
+        for i, dist in enumerate(dists):
+            reconstructions = Predictions(
+                name="final2/reconstruction_bitflip_skip_dim1f2" + str(dist)).load().get_dict()
+            noises = list(reconstructions[dist].keys())
+            noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
+            reconstruction = list(reconstructions[dist].values())
+            # print(latent[0][3].cpu().detach().numpy())
+            # if latent[0][3].cpu().detach().numpy().ndim == 0:
+
+            means = np.array(list(map(lambda x: x[0].cpu().detach().numpy(), reconstruction)))
+            ax1.plot(noises, means, label=str(dist), color=coloring[i])
+            means = smooth(means, 17)
+            print(dist)
+            der = np.gradient(means, noises)
+            der = smooth(der, 13)
+            ax2.plot(noises[10:], der[10:], label=str(dist), color=coloring[i])
+            # plt.ylim([-0.00001, 0.00001])
+            ax1.set_xlabel('associated temperature')
+            ax1.set_ylabel(r'mean reconstruction error')
+            ax2.set_ylabel(r'derivative')
+            plt.vlines(0.95, -0.075, 0.18, colors='red', linestyles='dashed')
+            plt.xlim(0, 2)
+            ax2.set_ylim(-0.075, 0.15)
+            # plt.xscale('log')
+            if random_flip:
+                plt.title(structure + " + random flip")
+            else:
+                plt.title(structure)
+        plt.legend()
+        fig.tight_layout()
+        plt.show()
+
+    elif task == 33:
+        latents = Predictions(name=name_dict_latent).load().get_dict()
+        dists = list(latents.keys())
+        for dist in dists:
+            noises = list(latents[dist].keys())
+            latent = list(latents[dist].values())
+            if len(latent[0][3].cpu()) == 1:
+                p1idx = 5
+                p2idx = -5
+                p1 = noises[5]
+                p2 = noises[-5]
+                plt.hist(latent[p1idx][2].cpu().detach().numpy(), bins=50)
+                plt.show()
+                plt.hist(latent[p2idx][2].cpu().detach().numpy(), bins=50)
+                plt.show()
+
+    elif task == 100:
+        # noise = 0.2
+        temperature = 2
+        noise = np.exp(-2 / temperature) / (1 + np.exp(-2 / temperature))
+        print(noise)
+        sample = BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
+                                    name="BFS_Testing-{0}".format(DISTANCE),
+                                    num=10, load=False, random_flip=random_flip)
+        model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE), structure=structure,
+                                       noise=NOISE_MODEL)
+        model = model.double().to(device)
+        plot_reconstruction(sample, noise, DISTANCE, model)
+    elif task == 101:  # Mean and variance of data
+        mean_variance_samples()
+    elif task == 102:
+        raw = Predictions(name="mean_variance_" + str(NOISE_MODEL).lower() + "_" + str(DISTANCE))
+        raw.load()
+        raw = raw.get_dict()
+        # plot_latent_mean(raw, random_flip, structure)
+        plot_mean_variance_samples(raw, DISTANCE, NOISE_MODEL)
+        # scatter_latent_var(raw, random_flip, structure)
+
 
     elif task == 10:  # Obtain T_C, plot T_C vs d ,TODO
         #noises = np.arange(0.01, 0.30, 0.002)
@@ -121,52 +325,34 @@ if __name__ == "__main__":
         plt.ylabel('p_c')
         print("pcritical=", popt[1], "+-", pcov[1, 1])
         plt.show()
-
     elif task == 4:  # Perform data collapse
         logging.debug("Start data collapse.")
-        predictions = Predictions.Predictions().load().get_dict()
+        predictions = Predictions(name_dict_latent).load().get_dict()
         # Plot.Plotter.plot_prediction(predictions, noises)
-        res = functions.data_collapse(NOISES, predictions)
+        res = functions.data_collapse(NOISES_TESTING, predictions)
         pc = res.x[0]
         nu = res.x[1]
         print(res.x)
-        Plot.Plotter.plot_collapsed(predictions, NOISES, pc, nu)
-        print(res.x)
-
-    elif task == 5:  # Plot graphs
-        predictions = Predictions.Predictions().load().get_dict()
-        plotter.plot_prediction(predictions, NOISES)
-
+        plot_collapsed(predictions, NOISES_TESTING, pc, nu)
     elif task == 6:  # Show network structure
-        if parsed.noise == 'Bit-Flip':
-            plot_model(NN.CNNBitFlip(parsed.dist, FILTERS, LAYOUT).model, to_file="CNN_BFS.png", show_shapes=True)
-        elif parsed.noise == 'Depolarizing':
-            plot_model(NN.CNNDepolarizing(parsed.dist, FILTERS, LAYOUT).model, to_file="CNN_D.png", show_shapes=True)
-
+        if NOISE_MODEL == 'BitFlip':
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_VAE.format(DISTANCE),
+                                           structure=structure).double().to(device)
+            dummy = next(iter(DataLoader(
+                BitFlipSurfaceData(DISTANCE, [0.1], name='Dummy', num=1, load=False, random_flip=random_flip),
+                batch_size=1, shuffle=False)))
+            input_names = ['Syndrome']
+            output_names = ['Reconstruction']
+            torch.onnx.export(model, dummy, str(Path().resolve().parent) + "/data/vae.onnx", input_names=input_names,
+                              output_names=output_names, verbose=True)
+        elif NOISE_MODEL == 'Depolarizing':
+            pass
     elif task == 7:  # Plot history of a training process
-        path = 'files/prediction_depolarizing_39.pkl'
-        #prediction = Predictions.Predictions(path)
-        prediction.load()
-        dict = prediction.get_dict()
-        out = dict.get('39')
-        noise1 = np.arange(0.01, 0.30, 0.002)
-        print(noise1[::5])
-        print(np.arange(0.01, 0.30, 0.01))
-        out_new = out[noise1[::5]]
-        path = 'files/prediction_depolarizing_0.pkl'
-        #prediction = Predictions.Predictions(path)
-        prediction.load()
-        prediction.add(39, out_new)
-        prediction.save()
-
+        pass
     elif task == 8:  # Plot QEC code
-        if NOISE_MODEL == 'Bit-Flip':
-            code = ErrorCode.BitFlipSurface(parsed.dist, 0.1)
-            code.circuit_to_png()
-        elif parsed.noise == 'Depolarizing':
-            code = ErrorCode.DepolarizingSurface(parsed.dist, 0.1)
-            code.circuit_to_png()
-
+        code = SurfaceCodePheno(DISTANCE, 0.1, False)
+        code.circuit_to_png()
     else:
         print("Unknown task number.")
         exit(-1)
