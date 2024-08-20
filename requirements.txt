@@ -1,7 +1,6 @@
 matplotlib~=3.8.1
 numpy~=1.26.1
 torch~=2.2.2
-src~=1.0
 scipy~=1.13.0
 stim~=1.14.dev1712965049
 --extra-index-url https://pypi.ngc.nvidia.com
@@ -11,3 +10,6 @@ tqdm~=4.66.2
 setuptools~=69.5.1
 seaborn~=0.13.2
 hiddenlayer~=0.3
+PyMatching~=2.2.0
+sinter~=1.13.0
+torchinfo~=1.8.0

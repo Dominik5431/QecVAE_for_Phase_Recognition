@@ -24,7 +24,7 @@ class QECCode(ABC):
         raise NotImplementedError("Subclasses should implement this!")
 
     @abstractmethod
-    def get_syndromes(self, n):
+    def get_syndromes(self, n, flip: bool, supervised: bool):
         raise NotImplementedError("Subclasses should implement this!")
 
 
@@ -172,14 +172,16 @@ class BitFlipSurfaceCode(QECCode):
                             stim.target_rec(-2 * self.distance ** 2 + 2 + i)])
         return circuit
 
-    def get_syndromes(self, n):
+    def get_syndromes(self, n, flip: bool, supervised: bool):
         sampler = self.circuit.compile_detector_sampler()
         syndromes = sampler.sample(shots=n)
         # Add here already the last redundant syndrome to have square shape
         z_add = 1
         x_add = 1
         syndromes = np.array(list(map(lambda y: np.where(y, -1, 1), syndromes)))  # tried on 08.05.
+        syndromes_temp = []
         syndromes_final = []
+        flips = []
         for s in syndromes:
             z_syndromes = s[:int(0.5 * len(s))]
             x_syndromes = s[int(0.5 * len(s)):]
@@ -191,10 +193,25 @@ class BitFlipSurfaceCode(QECCode):
                 x_add *= x
             x_syndromes = np.append(x_syndromes, x_add)
             syndrome_shot = np.append(z_syndromes, x_syndromes)
-            syndromes_final.append(syndrome_shot)
+            syndromes_temp.append(syndrome_shot)
         if self.random_flip:
-            syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_final)))
+            if not flip and not supervised:
+                for syndrome in syndromes_temp:
+                    if random() < 0.5:
+                        syndromes_final.append(syndrome)
+                        flips.append(1)
+                    else:
+                        syndromes_final.append(-syndrome)
+                        flips.append(-1)
+                return syndromes_final, flips
+            else:
+                syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_temp)))
+            # syndromes_final = list(map(lambda y: (y, 1) if random() < 0.5 else (-y, -1), syndromes_final))
+            # syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_final)))
+        else:
+            syndromes_final = syndromes_temp
         return syndromes_final
+
 
 class DepolarizingSurfaceCode(QECCode):
     def __init__(self, distance, noise, random_flip):
@@ -340,14 +357,16 @@ class DepolarizingSurfaceCode(QECCode):
                             stim.target_rec(-2 * self.distance ** 2 + 2 + i)])
         return circuit
 
-    def get_syndromes(self, n):
+    def get_syndromes(self, n, flip: bool):
         sampler = self.circuit.compile_detector_sampler()
         syndromes = sampler.sample(shots=n)
         # Add here already the last redundant syndrom to have square shape
         z_add = 1
         x_add = 1
         syndromes = np.array(list(map(lambda y: np.where(y, -1, 1), syndromes)))  # tried on 08.05.
+        syndromes_temp = []
         syndromes_final = []
+        flips = []
         for s in syndromes:
             z_syndromes = s[:int(0.5 * len(s))]
             x_syndromes = s[int(0.5 * len(s)):]
@@ -359,9 +378,23 @@ class DepolarizingSurfaceCode(QECCode):
                 x_add *= x
             x_syndromes = np.append(x_syndromes, x_add)
             syndrome_shot = np.append(z_syndromes, x_syndromes)
-            syndromes_final.append(syndrome_shot)
+            syndromes_temp.append(syndrome_shot)
         if self.random_flip:
-            syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_final)))
+            if not flip:
+                for syndrome in syndromes_temp:
+                    if random() < 0.5:
+                        syndromes_final.append(syndrome)
+                        flips.append(1)
+                    else:
+                        syndromes_final.append(-syndrome)
+                        flips.append(-1)
+                return syndromes_final, flips
+            else:
+                syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_temp)))
+            # syndromes_final = list(map(lambda y: (y, 1) if random() < 0.5 else (-y, -1), syndromes_final))
+            # syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_final)))
+        else:
+            syndromes_final = syndromes_temp
         return syndromes_final
 
 

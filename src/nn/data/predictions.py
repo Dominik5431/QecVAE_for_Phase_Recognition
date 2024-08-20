@@ -3,9 +3,10 @@ from pathlib import Path
 
 
 class Predictions:
-    def __init__(self, name):
+    def __init__(self, name: str, cluster: bool = False):
         self.dict = {}
         self.name = name
+        self.cluster = cluster
 
     def add(self, distance, latent):
         self.dict[distance] = latent
@@ -14,23 +15,27 @@ class Predictions:
         return self.dict[distance]
 
     def save(self):
-        with open(str(Path().resolve().parent) + "/data/" + self.name + ".pkl", 'ab') as fp:
-            pickle.dump(self.dict, fp)
-        # with open("data/" + self.name + ".pkl", 'ab') as fp:
-        #    pickle.dump(self.dict, fp)
+        if not self.cluster:
+            with open(str(Path().resolve().parent) + "/data/" + self.name + ".pkl", 'ab') as fp:
+                pickle.dump(self.dict, fp)
+        else:
+            with open("data/" + self.name + ".pkl", 'ab') as fp:
+                pickle.dump(self.dict, fp)
 
     def load(self):
         try:
-            with open(str(Path().resolve().parent) + "/data/" + self.name + ".pkl", 'rb+') as fp:
-                try:
-                    self.dict = pickle.load(fp)
-                except EOFError:
-                    self.dict = {}
-            # with open("data/" + self.name + ".pkl", 'rb+') as fp:
-            #    try:
-            #        self.dict = pickle.load(fp)
-            #    except EOFError:
-            #        self.dict = {}
+            if not self.cluster:
+                with open(str(Path().resolve().parent) + "/data/" + self.name + ".pkl", 'rb+') as fp:
+                    try:
+                        self.dict = pickle.load(fp)
+                    except EOFError:
+                        self.dict = {}
+            else:
+                with open("data/" + self.name + ".pkl", 'rb+') as fp:
+                    try:
+                        self.dict = pickle.load(fp)
+                    except EOFError:
+                        self.dict = {}
         except FileNotFoundError:
             self.dict = {}
         return self
