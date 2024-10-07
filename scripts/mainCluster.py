@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from src.nn import VisionTransformer
-from src.nn.data import BitFlipSurfaceData, DepolarizingSurfaceData
+from src.nn.data import BitFlipToricData, DepolarizingToricData
 from src.nn.net import VariationalAutoencoder
 from src.nn.data.predictions import Predictions
 from src.nn.net.cnn import CNN
@@ -25,21 +25,21 @@ def train_model():
     data_val = None
     if NOISE_MODEL == 'BitFlip':
         # data_train, data_val = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
-        data_train, data_val = (BitFlipSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
-                                                   name=name_data.format(DISTANCE),
-                                                   load=LOAD_DATA,
-                                                   random_flip=random_flip,
-                                                   sequential=sequential, cluster=CLUSTER,
-                                                   supervised=SUPERVISED)
+        data_train, data_val = (BitFlipToricData(distance=DISTANCE, noises=NOISES_TRAINING,
+                                                 name=name_data.format(DISTANCE),
+                                                 load=LOAD_DATA,
+                                                 random_flip=random_flip,
+                                                 sequential=sequential, cluster=CLUSTER,
+                                                 supervised=SUPERVISED)
                                 .training()
                                 .initialize(num=DATA_SIZE)
                                 .get_train_test_data(RATIO))
     elif NOISE_MODEL == 'Depolarizing':
-        data_train, data_val = (DepolarizingSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
-                                                        name=name_data.format(DISTANCE),
-                                                        load=LOAD_DATA,
-                                                        random_flip=random_flip,
-                                                        sequential=sequential, cluster=CLUSTER)
+        data_train, data_val = (DepolarizingToricData(distance=DISTANCE, noises=NOISES_TRAINING,
+                                                      name=name_data.format(DISTANCE),
+                                                      load=LOAD_DATA,
+                                                      random_flip=random_flip,
+                                                      sequential=sequential, cluster=CLUSTER)
                                 .training()
                                 .initialize(num=DATA_SIZE)
                                 .get_train_test_data(RATIO))
@@ -79,17 +79,17 @@ def latents():
         data_test = None
         if NOISE_MODEL == 'BitFlip':
             # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
-            data_test = (BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
-                                            name="BFS_Testing-{0}".format(DISTANCE),
-                                            load=False, random_flip=random_flip, sequential=sequential,
-                                            cluster=CLUSTER, supervised=SUPERVISED)
+            data_test = (BitFlipToricData(distance=DISTANCE, noises=[noise],
+                                          name="BFS_Testing-{0}".format(DISTANCE),
+                                          load=False, random_flip=random_flip, sequential=sequential,
+                                          cluster=CLUSTER, supervised=SUPERVISED)
                          .eval()
                          .initialize(num=1000))
         elif NOISE_MODEL == 'Depolarizing':
-            data_test = (DepolarizingSurfaceData(distance=DISTANCE, noises=[noise],
-                                                 name="DS_Testing-{0}".format(DISTANCE),
-                                                 load=False, random_flip=random_flip, sequential=sequential,
-                                                 cluster=CLUSTER)
+            data_test = (DepolarizingToricData(distance=DISTANCE, noises=[noise],
+                                               name="DS_Testing-{0}".format(DISTANCE),
+                                               load=False, random_flip=random_flip, sequential=sequential,
+                                               cluster=CLUSTER)
                          .eval()
                          .initialize(num=1000))
         assert data_test is not None
@@ -113,16 +113,16 @@ def reconstructions():
         data_test = None
         if NOISE_MODEL == 'BitFlip':
             # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
-            data_test = (BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
-                                            name="BFS_Testing-{0}".format(DISTANCE),
-                                            load=False, random_flip=random_flip, sequential=sequential, cluster=CLUSTER)
+            data_test = (BitFlipToricData(distance=DISTANCE, noises=[noise],
+                                          name="BFS_Testing-{0}".format(DISTANCE),
+                                          load=False, random_flip=random_flip, sequential=sequential, cluster=CLUSTER)
                          .eval()
                          .initialize(num=1000))
         elif NOISE_MODEL == 'Depolarizing':
-            data_test = (DepolarizingSurfaceData(distance=DISTANCE, noises=[noise],
-                                                 name="DS_Testing-{0}".format(DISTANCE),
-                                                 load=False, random_flip=random_flip, sequential=sequential,
-                                                 cluster=CLUSTER)
+            data_test = (DepolarizingToricData(distance=DISTANCE, noises=[noise],
+                                               name="DS_Testing-{0}".format(DISTANCE),
+                                               load=False, random_flip=random_flip, sequential=sequential,
+                                               cluster=CLUSTER)
                          .eval()
                          .initialize(num=1000))
         results[noise] = test_model_reconstruction_error(model, data_test,
@@ -136,18 +136,18 @@ def mean_variance_samples():
     for noise in tqdm(NOISES_TESTING):
         if NOISE_MODEL == 'BitFlip':
             # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
-            data_test = (BitFlipSurfaceData(distance=DISTANCE, noises=[noise],
-                                            name="DS_Testing-{0}".format(DISTANCE),
-                                            load=False, random_flip=random_flip, sequential=sequential)
+            data_test = (BitFlipToricData(distance=DISTANCE, noises=[noise],
+                                          name="DS_Testing-{0}".format(DISTANCE),
+                                          load=False, random_flip=random_flip, sequential=sequential)
                          .eval()
                          .initialize(num=100))
             mean = torch.mean(data_test.syndromes, dim=(1, 2, 3))
             var = torch.var(data_test.syndromes, dim=(1, 2, 3))
             results[noise] = (mean, var)
         elif NOISE_MODEL == 'Depolarizing':
-            data_test = (DepolarizingSurfaceData(distance=DISTANCE, noises=[noise],
-                                                 name="DS_Testing-{0}".format(DISTANCE),
-                                                 load=False, random_flip=random_flip, sequential=sequential)
+            data_test = (DepolarizingToricData(distance=DISTANCE, noises=[noise],
+                                               name="DS_Testing-{0}".format(DISTANCE),
+                                               load=False, random_flip=random_flip, sequential=sequential)
                          .eval()
                          .initialize(num=100))
             mean = torch.mean(data_test.syndromes, dim=(2, 3))

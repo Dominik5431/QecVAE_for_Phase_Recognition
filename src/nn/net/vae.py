@@ -1,4 +1,5 @@
 import torch.cuda
+from torch.nn import TransformerEncoder
 
 from .net import *
 from .encoder import *
@@ -16,9 +17,8 @@ def get_gpu_memory():
 
 
 class VariationalAutoencoder(Net):
-    def __init__(self, latent_dims: int, distance: int, name: str, structure: str, noise: str, cluster: bool = False):
+    def __init__(self, latent_dims: int, distance: int, name: str, structure: str, noise: str, cluster: bool = False, device: torch.device = torch.device('cpu')):
         super(VariationalAutoencoder, self).__init__(name, cluster)
-        channels = -1
         if noise == 'BitFlip':
             channels = 1
         elif noise == 'Ising':
@@ -30,8 +30,8 @@ class VariationalAutoencoder(Net):
         assert channels > 0
         self.structure = structure
         if structure == 'standard':
-            self.encoder = VariationalEncoder(latent_dims, distance, channels)
-            self.decoder = Decoder(latent_dims, distance, channels)
+            self.encoder = VariationalEncoder(latent_dims, distance, channels, device=device)
+            self.decoder = Decoder(latent_dims, distance, channels, device=device)
         elif structure == 'simple':
             self.encoder = VariationalEncoderSimple(latent_dims, distance, channels)
             self.decoder = DecoderSimple(latent_dims, distance, channels)
@@ -57,29 +57,11 @@ class VariationalAutoencoder(Net):
 
     def forward(self, x):
         if self.structure == 'transformer' or self.structure == 'ising':
-            # print(get_gpu_memory())
-            # torch.cuda.synchronize()
-            # start_time = time.time()
             z_mean, z_log_var, z = self.encoder(x)
-            # torch.cuda.synchronize()
-            # print("--- %s seconds encoding tot---" % (time.time() - start_time))
-            # print(get_gpu_memory())
-            # torch.cuda.synchronize()
-            # start_time = time.time()
             x = self.decoder(z)
-            # torch.cuda.synchronize()
-            # print("--- %s seconds decoding tot---" % (time.time() - start_time))
-            # print(get_gpu_memory())
         else:
-            # print(get_gpu_memory())
-            # start_time = time.time()
-            z_mean, z_log_var, z, indices1, indices2, input_size1, input_size2 = self.encoder(x)
-            # print("--- %s seconds ---" % (time.time() - start_time))
-            # print(get_gpu_memory())
-            # start_time = time.time()
-            x = self.decoder(z, indices1, indices2, input_size1, input_size2)
-            # print("--- %s seconds ---" % (time.time() - start_time))
-            # print(get_gpu_memory())
+            z_mean, z_log_var, z, indices1, indices2, input_size1, input_size2, *args = self.encoder(x)
+            x = self.decoder(z, indices1, indices2, input_size1, input_size2, *args)
         # TODO write differently using *args
         # TODO add values that should be used for skip connections a return values of the encoder to give them to
         # the decoder as additional parameters
@@ -90,3 +72,176 @@ class VariationalAutoencoderPheno(Net):
     def __init__(self, latent_dims: int, distance: int, name: str, structure: str):
         super().__init__(name)
         self.encoder = VariationalEncoderPheno(latent_dims, distance)
+
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, hidden_dim, dev, dropout=0.1):
+        super(PositionalEncoding, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.dropout = nn.Dropout(p=dropout)
+
+        self.rnn = nn.GRU(input_size=d_model, hidden_size=hidden_dim, batch_first=True, bidirectional=False, device=dev)
+
+    def forward(self, x):
+        x = x + self.dropout(self.rnn(x)[0])
+        return x
+
+
+class LearnablePositionalEncoding(nn.Module):
+    def __init__(self, n, d_model):
+        # put n here as max_seq_len
+        super().__init__()
+        self.positional_embedding = nn.Embedding(n, d_model)
+
+    def forward(self, x):
+        return x + self.positional_embedding(torch.arange(x.size(1), device=x.device))
+
+
+class TraVAE(Net):
+    def __init__(self, latent_dims: int, distance: int, name: str, *args, cluster: bool = False, **kwargs):
+        super(TraVAE, self).__init__(name, cluster)
+        self.n = kwargs['n']  # number of data qubits
+        self.k = kwargs['k']  # number of logical qubits -> number of syndromes: n - k
+        self.d_model = kwargs['d_model']  # dimension of embedding
+        self.d_ff = kwargs['d_ff']  # dimension of feedforward layer
+        self.n_layers = kwargs['n_layers']  # number of attention layers
+        self.n_heads = kwargs['n_heads']  # number of attention heads
+        self.dropout = kwargs['dropout']  # dropout rate
+        self.device = kwargs['device']  # device
+        self.seq_len = self.n - 1 + 2 * distance * self.k  + 1
+        self.latent_dims = latent_dims
+
+        self.fc_in = nn.Embedding(2, self.d_model)
+        # self.positional_encoding = PositionalEncoding(self.d_model, self.d_model, self.device, self.dropout)
+        self.positional_encoding = LearnablePositionalEncoding(self.n - 1 + 6 * self.k, self.d_model)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model,
+                                                   nhead=self.n_heads,
+                                                   dim_feedforward=self.d_ff,
+                                                   dropout=self.dropout,
+                                                   batch_first=True,
+                                                   device=self.device)
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=self.n_layers)
+        self.fc_enc = nn.Linear(self.d_model, 1)
+        # Mean and log-variance layers for latent space
+        self.mean_fc = nn.Linear(self.seq_len, latent_dims)
+        self.logvar_fc = nn.Linear(self.seq_len, latent_dims)
+
+        # Transformer decoder (autoregressive) TODO think about how decoder could and would look like
+        decoder_layer = nn.TransformerEncoderLayer(d_model=self.d_model,
+                                                   nhead=self.n_heads,
+                                                   dim_feedforward=self.d_ff,
+                                                   dropout=self.dropout,
+                                                   batch_first=True,
+                                                   device=self.device)
+        self.decoder = nn.TransformerEncoder(decoder_layer, num_layers=self.n_layers)
+
+        '''Here attempt, where latent variable as first tokens -> cf. transformer vae password generation paper'''
+
+        # Latent to embedding layer
+        self.fc_dec = nn.Linear(latent_dims, self.seq_len)
+        self.latent_to_embedding = nn.Linear(1, self.d_model)
+        self.positional_encoding_dec = LearnablePositionalEncoding(self.n - 1 + 6 * self.k + self.latent_dims, self.d_model)
+
+        '''Here attempt as in sentence generation paper, output completely generated by latent variable vector'''
+        # self.linear_proj = nn.Linear(self.latent_dims, self.d_model)
+        # self.rnn = nn.GRU(input_size=self.d_model, hidden_size=1, batch_first=True, bidirectional=False, device=self.device)
+
+        # Output layer to map back to vocabulary
+        self.fc_out = nn.Linear(self.d_model, 1)
+
+    def reparameterize(self, mu, logvar):
+        """Reparameterization trick to sample from N(mu, var)"""
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+
+    def encode(self, src):
+        """Autoregressive encoding"""
+        # seq_len = src.size(1)
+        # mask = torch.ones(seq_len, seq_len)
+        # mask = torch.tril(mask, diagonal=0)
+
+        # For subsequent tokens, set diagonal values to 0 to prevent self-attention (except for the start token)
+        # mask[1:, 1:] = torch.tril(torch.ones((seq_len - 1, seq_len - 1)), diagonal=-1)
+
+        # mask = mask.masked_fill(mask == 0, float('-inf'))
+        # mask = mask.masked_fill(mask == 1, 0.0)
+        # mask = mask.to(self.device)
+
+        memory = self.encoder(src)  #, mask=mask)  # TODO mask also here already? try first without ...
+        encoded = self.fc_enc(memory).squeeze(-1)
+
+        # Use final output for mean and variance
+        mean = self.mean_fc(encoded)  # mean across tokens
+        logvar = self.logvar_fc(encoded)  # log variance across tokens
+        return mean, logvar  #, memory
+
+    def decode(self, x, z):  #, memory):
+        """Autoregressive decoding"""
+        # Transform the latent vector to start token embeddings
+        start_token_value = 1
+        start_token = torch.full((x.size(0), 1), start_token_value, dtype=torch.long, device=self.device)
+        tgt = torch.cat((z, start_token, x[:, :-1]), dim=1).unsqueeze(-1)
+        # z = self.fc_dec(z).unsqueeze(-1)
+        tgt = self.latent_to_embedding(tgt)
+        # tgt = z.unsqueeze(1).expand(-1, x.size(1), -1)
+        # tgt = self.linear_proj(tgt)
+        tgt = self.positional_encoding_dec(tgt)
+
+        seq_len = tgt.size(1)
+        mask = torch.ones(seq_len, seq_len)
+        mask = torch.tril(mask, diagonal=0)
+
+        mask[:self.latent_dims, :self.latent_dims] = torch.full((self.latent_dims, self.latent_dims), 1)
+        # For subsequent tokens, set diagonal values to 0 to prevent self-attention (except for the start token)
+        mask[self.latent_dims + 1:, self.latent_dims + 1:] = torch.tril(torch.ones((seq_len - self.latent_dims - 1, seq_len - self.latent_dims - 1)), diagonal=-1)
+
+        mask = mask.masked_fill(mask == 0, float('-inf'))
+        mask = mask.masked_fill(mask == 1, 0.0)
+        mask = mask.to(self.device)
+
+        output = self.decoder(tgt, mask=mask)  # , memory_mask=mask)
+        # output = self.rnn(output)[0]
+        return F.sigmoid(self.fc_out(output))
+        # return F.sigmoid(output)
+
+    def forward(self, input):
+        # Encoding
+        src = input
+
+        start_token_value = 1
+        start_token = torch.full((src.size(0), 1), start_token_value, dtype=torch.long, device=self.device)
+        src = torch.cat((start_token, src), dim=1).to(self.device)  # here not src[:, :-1]
+
+        src = F.relu(self.fc_in(src))
+        src = self.positional_encoding(src)
+        mean, logvar = self.encode(src)
+        z = self.reparameterize(mean, logvar)
+
+        # Decoding
+        output = self.decode(input, z)
+        return output[:, self.latent_dims:, :], mean, logvar, z
+        # return output, mean, logvar, z
+
+    def partial_forward(self, src):
+        # Encoding
+        start_token_value = 1
+        start_token = torch.full((src.size(0), 1), start_token_value, dtype=torch.long, device=self.device)
+        src = torch.cat((start_token, src), dim=1).to(self.device)  # here not src[:, :-1]
+
+        src = F.relu(self.fc_in(src))
+        src = self.positional_encoding(src)
+        mean, logvar = self.encode(src)
+        return mean
+
+
+# Hyperparameters
+d_model = 512  # Transformer model dimensionality
+nhead = 8  # Number of attention heads
+num_layers = 6  # Number of Transformer layers (both encoder and decoder)
+latent_dim = 128  # Dimensionality of the latent space
+vocab_size = 10000  # Vocabulary size
+max_seq_len = 50  # Maximum sequence length
+
+
+

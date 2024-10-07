@@ -3,7 +3,7 @@ import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from src.nn.data.bitflip import BitFlipSurfaceData
+from src.nn.data.bitflip import BitFlipToricData
 from src.nn.utils.functions import smooth
 
 
@@ -77,9 +77,9 @@ if task == 0:
     pnn = 6 * noise * (1 - noise) ** 6 + 20 * noise ** 3 * (1 - noise) ** 4 + 6 * noise ** 5 * (1 - noise) ** 2
     po = 8 * noise * (1 - noise) ** 7 + 56 * noise ** 3 * (1 - noise) ** 5 + 56 * noise ** 5 * (
             1 - noise) ** 3 + 8 * noise ** 7 * (1 - noise)
-    sample = BitFlipSurfaceData(distance=distance, noises=[noise],
-                                name="BFS_Testing-{0}".format(distance),
-                                load=False, random_flip=False, sequential=False).training().initialize(n)
+    sample = BitFlipToricData(distance=distance, noises=[noise],
+                              name="BFS_Testing-{0}".format(distance),
+                              load=False, random_flip=False, sequential=False).training().initialize(n)
     mean = torch.mean(sample.syndromes, dim=(1, 2, 3))
     s = sample.syndromes.cpu().detach().numpy()
     # print(mean)
@@ -101,9 +101,9 @@ elif task == -1:
 
     noise = 0.1
     n = 10000
-    sample = BitFlipSurfaceData(distance=distance, noises=[noise],
-                                name="BFS_Testing-{0}".format(distance),
-                                load=False, random_flip=False, sequential=False).training().initialize(n)
+    sample = BitFlipToricData(distance=distance, noises=[noise],
+                              name="BFS_Testing-{0}".format(distance),
+                              load=False, random_flip=False, sequential=False).training().initialize(n)
     s = sample.syndromes.cpu().detach().numpy()
     po = 8 * noise * (1 - noise) ** 7 + 56 * noise ** 3 * (1 - noise) ** 5 + 56 * noise ** 5 * (
             1 - noise) ** 3 + 8 * noise ** 7 * (1 - noise)
@@ -121,9 +121,9 @@ elif task == 1:
     distances = np.array([5, 11, 17, 25, 31, 33, 39, 45, 51, 59, 63])
     for dist in tqdm(distances):
         p = 4 * ((1 - noise) * noise ** 3 + (1 - noise) ** 3 * noise)
-        sample = BitFlipSurfaceData(distance=dist, noises=[noise],
-                                    name="BFS_Testing-{0}".format(dist),
-                                    load=False, random_flip=True, sequential=False).training().initialize(n1)
+        sample = BitFlipToricData(distance=dist, noises=[noise],
+                                  name="BFS_Testing-{0}".format(dist),
+                                  load=False, random_flip=True, sequential=False).training().initialize(n1)
         mean = torch.mean(sample.syndromes, dim=(1, 2, 3))
         # print(mean)
         # print(torch.as_tensor(np.random.normal(1 - 2 * p, 1 - (1 - 2 * p) ** 2, 100)))
@@ -152,9 +152,9 @@ elif task == 2:
         binder = np.zeros(len(noises))
         print('Iterations: ', len(noises))
         for i, noise in tqdm(enumerate(noises)):
-            sample = BitFlipSurfaceData(distance=dist, noises=[noise],
-                                        name="BFS_Testing-{0}".format(dist),
-                                        load=False, random_flip=True, sequential=False).training().initialize(n1)
+            sample = BitFlipToricData(distance=dist, noises=[noise],
+                                      name="BFS_Testing-{0}".format(dist),
+                                      load=False, random_flip=True, sequential=False).training().initialize(n1)
             mean = torch.mean(sample.syndromes, dim=(1, 2, 3))
             # plt.scatter(2 / np.log((1 - noise) / noise), torch.mean(torch.abs(mean)).cpu(), color='red')
             binder[i] = 1 - (torch.mean(mean ** 4) / (3 * torch.mean(mean ** 2) ** 2)).cpu()
@@ -180,9 +180,9 @@ elif task == 20:  # with 1, 0 instead of -1, 1
     # print(noises)
     for noise in tqdm(noises):
         p = 4 * ((1 - noise) * noise ** 3 + (1 - noise) ** 3 * noise)
-        sample = BitFlipSurfaceData(distance=distance, noises=[noise],
-                                    name="BFS_Testing-{0}".format(distance),
-                                    load=False, random_flip=False, sequential=False).training().initialize(n1)
+        sample = BitFlipToricData(distance=distance, noises=[noise],
+                                  name="BFS_Testing-{0}".format(distance),
+                                  load=False, random_flip=False, sequential=False).training().initialize(n1)
         nd_sample = sample.syndromes.cpu().detach().numpy()
         shape = np.shape(nd_sample)
         nd_sample = nd_sample.flatten()
@@ -208,16 +208,17 @@ elif task == 20:  # with 1, 0 instead of -1, 1
     plt.show()
 elif task == 3:
     n1 = 50000
-    temperature = np.arange(0.02, 2, 0.02)
+    temperature = np.arange(0.02, 3, 0.02)
     noises = np.exp(-2 / temperature) / (1 + np.exp(-2 / temperature))
     sus = np.zeros(len(noises))
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
-    for i, noise in tqdm(enumerate(noises)):
+    for i, noise in enumerate(tqdm(noises)):
         p = 4 * ((1 - noise) * noise ** 3 + (1 - noise) ** 3 * noise)
-        sample = BitFlipSurfaceData(distance=distance, noises=[noise],
-                                    name="BFS_Testing-{0}".format(distance),
-                                    load=False, random_flip=True, sequential=False).training().initialize(n1)
+        sample = BitFlipToricData(distance=distance, noises=[noise],
+                                  name="BFS_Testing-{0}".format(distance),
+                                  load=False, random_flip=True, sequential=False,
+                                  device=torch.device('cpu')).training().initialize(n1)
         mean = torch.mean(sample.syndromes, dim=(1, 2, 3))
         # mean = torch.log(mean)
         # print(noise)
@@ -233,5 +234,8 @@ elif task == 3:
     print(noises[np.argmax(sus)])
     ax1.plot(temperature, 1 - 2 * 4 * ((1 - noises) * noises ** 3 + (1 - noises) ** 3 * noises), color='black', label='number of NTS')
     plt.legend()
+    ax1.set_xlabel('associated temperature')
+    ax1.set_ylabel(r'mean $\langle M \rangle$')
+    ax2.set_ylabel(r'$d \cdot$ susceptibility')
     plt.show()
     print(sus)

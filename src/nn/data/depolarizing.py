@@ -1,37 +1,48 @@
 import torch
 from torch.utils.data import Dataset
 import numpy as np
+from tqdm import tqdm
+
 from .qecdata import QECDataset
-from src.error_code import DepolarizingSurfaceCode
+from src.error_code import DepolarizingToricCode, SurfaceCode
 
 
 # TODO cross-check with code in bitflip.py upon changes I made when adapting the respective code
 
-class DepolarizingSurfaceData(QECDataset):
-    def __init__(self, distance, noises, name, load, random_flip, sequential: bool = False, cluster: bool = False):
-        super().__init__(distance, noises, name, load, random_flip, cluster)
+class DepolarizingToricData(QECDataset):
+    def __init__(self, distance, noises, name, load, random_flip, device, sequential: bool = False,
+                 cluster: bool = False, only_syndromes: bool = False):
+        super().__init__(distance=distance, noises=noises, name=name, load=load, device=device, random_flip=random_flip,
+                         cluster=cluster, only_syndromes=only_syndromes)
         self.sequential = sequential
 
     def __len__(self):
         return self.syndromes.size(dim=0)
 
     def __getitem__(self, index):
-        if self.train:
-            return self.syndromes[index]
-        else:
-            return self.syndromes[index], self.flips[index]
+        output = (self.syndromes[index],)
+        if not self.only_syndromes:
+            output = output + (self.logical[index],)
+        if not self.train:
+            output = output + (self.flips[index],)
+        return output
 
-    def generate_data(self, n, rounds):
-        syndromes = []  # deleted rounds, TODO check if shuffling is really doing the proper thing here
+    def generate_data(self, n):
+        syndromes = []
         flips = []
-        for noise in self.noises:
-            code = DepolarizingSurfaceCode(self.distance, noise, self.random_flip)
+        logical = []
+
+        # Generate data for each noise value
+        for noise in tqdm(self.noises):
+            code = DepolarizingToricCode(self.distance, noise, self.random_flip)
             if not self.train:
-                syndromes_noise, flips_noise = code.get_syndromes(n, self.train)
+                syndromes_noise, logical_noise, flips_noise = code.get_syndromes(n, self.train,
+                                                                                 only_syndromes=self.only_syndromes)
                 flips = flips + flips_noise
             else:
-                syndromes_noise = code.get_syndromes(n, self.train)
+                syndromes_noise, logical_noise = code.get_syndromes(n, self.train, self.only_syndromes)
             syndromes = syndromes + list(syndromes_noise)
+            logical = logical + list(logical_noise)
 
         # Bring data into right shape
         # In torch, batch has indices (N,C,H,W)
@@ -39,9 +50,15 @@ class DepolarizingSurfaceData(QECDataset):
             syndromes = np.reshape(np.array(syndromes), (n * len(self.noises), self.distance ** 2, 2))
         else:
             syndromes = np.reshape(np.array(syndromes), (n * len(self.noises), 2, self.distance, self.distance))
-        if not self.random_flip:
-            return torch.as_tensor(syndromes, device=self.device, dtype=torch.double)
-        return torch.as_tensor(syndromes, device=self.device, dtype=torch.double), torch.as_tensor(flips, device=self.device, dtype=torch.double)
+
+        output = (torch.as_tensor(np.array(syndromes), device=self.device, dtype=torch.float32),)
+
+        if not self.only_syndromes:
+            output = output + (torch.as_tensor(np.array(logical), device=self.device, dtype=torch.float32),)
+        if self.random_flip:
+            output = output + (torch.as_tensor(np.array(flips), device=self.device, dtype=torch.float32),)
+
+        return output
 
     def get_train_test_data(self, ratio):  # think about if really necessary or if there is a nicer solution
         dataset_train, dataset_val = torch.utils.data.random_split(self,
@@ -49,63 +66,26 @@ class DepolarizingSurfaceData(QECDataset):
         return dataset_train, dataset_val
 
 
-class DepolarizingRotatedSurfaceData(QECDataset):
-    def __init__(self, distance, noises, name, num, load, random_flip):
-        super().__init__(distance, noises, name, num, load, random_flip)
+class DepolarizingSurfaceData(QECDataset):
+    def __init__(self, distance: int, noises, name: str, load: bool, device: torch.device, cluster: bool = False,
+                 only_syndromes: bool = False):
+        super().__init__(distance, noises, name, load, device, cluster, only_syndromes)
 
-    def generate_data(self, num, rounds):
-        # Important: generate data alternating between noise, otherwise data will be ordered as labels = [0, ..., 0,
-        # 1, ..., 1] Shuffling with limited buffer_size then will not mix 0 and 1 labels, shuffling with buffer over
-        # whole data set negates the effect of memory saving since the memory occupancy will be too large for large
-        # datasets
-        def order_shape(arr):
-            result = np.zeros((self.distance + 1, self.distance + 1, 3))
-            z_stabs = np.zeros((self.distance + 1, self.distance + 1))
-            x_stabs = np.zeros((self.distance + 1, self.distance + 1))
-            all_stabs = np.zeros((self.distance + 1, self.distance + 1))
-            shift = True
-            for k in np.arange(self.distance + 1):
-                for h in np.arange(1, self.distance, 2):
-                    if shift:
-                        z_stabs[k, h + 1] = arr[k * int((self.distance - 1) / 2) + int((h - 1) / 2)]  # h starts at 1,
-                        # with 2 increment!
-                        all_stabs[k, h + 1] = arr[k * int((self.distance - 1) / 2) + int((h - 1) / 2)]
-                    elif not shift:
-                        z_stabs[k, h] = arr[k * int((self.distance - 1) / 2) + int((h - 1) / 2)]
-                        all_stabs[k, h] = arr[k * int((self.distance - 1) / 2) + int((h - 1) / 2)]
-                shift = not shift
-            shift = False
-            for k in np.arange(1, self.distance):
-                for h in np.arange(0, self.distance + 1, 2):
-                    if shift:
-                        x_stabs[k, h + 1] = arr[
-                            (k - 1) * int((self.distance + 1) / 2) + int(h / 2) + int((self.distance ** 2 - 1) / 2)]
-                        all_stabs[k, h + 1] = arr[
-                            (k - 1) * int((self.distance + 1) / 2) + int(h / 2) + int((self.distance ** 2 - 1) / 2)]
-                    elif not shift:
-                        x_stabs[k, h] = arr[
-                            (k - 1) * int((self.distance + 1) / 2) + int(h / 2) + int((self.distance ** 2 - 1) / 2)]
-                        all_stabs[k, h] = arr[
-                            (k - 1) * int((self.distance + 1) / 2) + int(h / 2) + int((self.distance ** 2 - 1) / 2)]
-                shift = not shift
-            result[:, :, 0] = all_stabs
-            result[:, :, 1] = z_stabs
-            result[:, :, 2] = x_stabs
-            return result
+    def __len__(self):
+        return self.syndromes.size(dim=0)
 
+    def __getitem__(self, idx):
+        return self.syndromes[idx]
+
+    def generate_data(self, n, only_syndromes: bool = False):
         syndromes = []
-        for _ in np.arange(rounds):
-            for noise in self.noises:
-                code = DepolarizingSurface(self.distance, noise)
-                syndromes = syndromes + code.get_syndromes(int(num / rounds))
-        # Bring data into right shape
-        syndromes_new = np.zeros((len(syndromes), self.distance + 1, self.distance + 1, 3))
-        # 1: all stabilizers, 2: only Z stabilizers, 3: only X stabilizers # TODO change this since we use VAEs now
-        for i, elm in enumerate(self.syndromes):
-            syndromes_new[i] = order_shape(elm)
-        self.syndromes = torch.as_tensor(syndromes_new, device=self.device)
-        return self
+        for noise in self.noises:
+            c = SurfaceCode(self.distance, noise, noise_model='depolarizing')
+            syndromes_noise = c.get_syndromes(n, only_syndromes=only_syndromes)
+            syndromes = syndromes + list(syndromes_noise)
+        # data is already provided sequentially as [syndromes, noise]
+        return torch.as_tensor(np.array(syndromes), device=self.device)
 
-    def get_train_test_data(self, ratio):  # think about if really necessary or if there is a nicer solution
-        dataset_train, dataset_val = torch.utils.data.random_split(self, [ratio, 1 - ratio])
-        return torch.as_tensor(dataset_train), torch.as_tensor(dataset_val)
+    def get_train_val_data(self, ratio=0.8):
+        train_set, val_set = torch.utils.data.random_split(self, [ratio - 1 / len(self), 1 - ratio + 1 / len(self)])
+        return train_set, val_set

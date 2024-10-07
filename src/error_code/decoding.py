@@ -191,7 +191,7 @@ def surface_code_capacity_zero(Lx, Ly, p):
     circuit.append("M", list_x_ancillas_index)
 
     for idx, ancilla_qubit_idx in enumerate(list_x_ancillas_index[::-1]):
-        offset = (L ** 2 - 1) // 2
+        offset = (Lx ** 2 - 1) // 2
         coord_x, coord_y = index_to_coordinate[ancilla_qubit_idx]
         circuit.append_from_stim_program_text(
             "DETECTOR({},{})".format(coord_x, coord_y) + " rec[-{}] rec[-{}]".format(1 + idx, 1 + idx + offset))
@@ -372,6 +372,12 @@ def surface_code_circuit(distance, noise):
 # p=1e-1
 # n_shots = 5
 fig, ax = plt.subplots(1, 1, constrained_layout=True)
+
+s = surface_code_capacity_zero(3, 3, 0.)
+sampler = s.compile_detector_sampler()
+detection_events, observable_flips = sampler.sample(3, separate_observables=True)
+
+exit(-1)
 
 Ls = [3, 5, 7]
 for L in Ls:

@@ -6,20 +6,21 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms.v2 import Normalize, Compose, Resize, ToTensor
+from tqdm import tqdm
 from transformers import ViTImageProcessor, ViTForImageClassification
 
 import src.nn.net.vision_transformer
 
 
 def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Callable, epochs, batch_size,
-          dataset: Dataset, val_dataset: Dataset) -> nn.Module:
-    # device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
-    device = torch.device('cpu')
+          dataset: Dataset, val_set: Dataset) -> nn.Module:
+    device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
+    # device = torch.device('cpu')
     print("Training will run on {0}".format(device))
-    model = model.double().to(device)
+    model = model.to(device)
     train_loader = DataLoader(dataset, batch_size,
                               shuffle=True)  #, pin_memory=True)  # TODO batch size and shuffle are mutually exclusive according to DataLoader docs
-    val_loader = DataLoader(val_dataset, batch_size,
+    val_loader = DataLoader(val_set, batch_size,
                             shuffle=True)  #, pin_memory=True)  # TODO check if pin_memory actually makes things faster
     optimizer = init_optimizer((model.parameters()))
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=5, verbose=True) # TODO check how the scheduler works and how to optimize the hyperparameters, adjust learning rate based on loss on validation dataset, modify training and data to provide a validation dataset
@@ -46,20 +47,25 @@ def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Ca
           43: 6.5
           }
 
-    k = ks[dist]
-    b = bs[dist]
+    k = 0.1
+    b = 6.5
 
     for e in range(epochs):
-        beta = (1 + np.exp(-k * e + b))
+        # beta = (1 + np.exp(-k * e + b))
+        beta = 5000
         avg_loss = 0
         num_batches = 0
         model.train()
-        for (batch_idx, batch) in enumerate(train_loader):
+        for (batch_idx, batch) in enumerate(tqdm(train_loader)):
             # print(batch_idx)
             optimizer.zero_grad()
-            output, mean, log_var = model.forward(batch.to(device))
-            # output = torch.where(output > 0.5, torch.ones_like(output[0]), torch.zeros_like(output[0]))  # included on 29.04.
-            batch_loss = loss(output, mean, log_var, batch.to(device), beta)
+            if type(batch) is tuple:
+                output, mean, log_var = model.forward([batch[0].to(device), batch[1].to(device)])
+                # output = torch.where(output > 0.5, torch.ones_like(output[0]), torch.zeros_like(output[0]))  # included on 29.04.
+                batch_loss = loss(output, mean, log_var, [batch[0].to(device), batch[1].to(device)], beta)
+            else:
+                output, mean, log_var = model.forward(batch[0].to(device))
+                batch_loss = loss(output, mean, log_var, batch[0].to(device), beta)
             batch_loss.backward()
             avg_loss += batch_loss
             optimizer.step()
@@ -72,8 +78,13 @@ def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Ca
         model.eval()
         with torch.no_grad():
             for (batch_idx, batch) in enumerate(val_loader):
-                val_output, val_mean, val_log_var = model.forward(batch.to(device))
-                val_loss = loss(val_output, val_mean, val_log_var, batch.to(device), beta=500)
+                if type(batch) is tuple:
+                    val_output, val_mean, val_log_var = model.forward([batch[0].to(device), batch[1].to(device)])
+                    val_loss = loss(val_output, val_mean, val_log_var, [batch[0].to(device), batch[1].to(device)], beta=1)
+                else:
+                    val_output, val_mean, val_log_var = model.forward(batch[0].to(device))
+                    val_loss = loss(val_output, val_mean, val_log_var, batch[0].to(device),
+                                    beta=1)
                 avg_val_loss += val_loss
                 num_batches += 1
             avg_val_loss /= num_batches
@@ -95,13 +106,11 @@ def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Ca
 def train_supervised(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Callable, epochs, batch_size,
                      dataset: Dataset, val_dataset: Dataset) -> nn.Module:
     # device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
-    device = torch.device('cpu')
+    device = torch.device('mps')
     print("Training will run on {0}".format(device))
-    model = model.float().to(device)
-    train_loader = DataLoader(dataset, batch_size,
-                              shuffle=True)  # , pin_memory=True)  # TODO batch size and shuffle are mutually exclusive according to DataLoader docs
-    val_loader = DataLoader(val_dataset, batch_size,
-                            shuffle=True)  # , pin_memory=True)  # TODO check if pin_memory actually makes things faster
+    model = model.to(device)
+    train_loader = DataLoader(dataset, batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size, shuffle=True)
     optimizer = init_optimizer((model.parameters()))
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=5, verbose=True) # TODO check how the scheduler works and how to optimize the hyperparameters, adjust learning rate based on loss on validation dataset, modify training and data to provide a validation dataset
     writer = SummaryWriter('logs/train')
@@ -145,7 +154,8 @@ def train_supervised(model: nn.Module, init_optimizer: Callable[[Any], Optimizer
                 # plt.imshow(_trans(batch[0])[0][0])
                 # plt.show()
                 # print(_trans(batch[0]).expand((batch_size, 3, size['height'], size['height'])).shape)
-                output = model.forward(_trans(batch[0]).expand((batch_size, 3, size['height'], size['height'])).to(device))
+                output = model.forward(
+                    _trans(batch[0]).expand((batch_size, 3, size['height'], size['height'])).to(device))
             else:
                 output = model.forward(batch[0].to(device))
             batch_loss = loss(output, batch[1])
@@ -176,6 +186,66 @@ def train_supervised(model: nn.Module, init_optimizer: Callable[[Any], Optimizer
                 num_batches += 1
             avg_val_loss /= num_batches
             # val_accuracy /= (num_batches * batch_size)
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                model.save()
+            if avg_val_loss >= previous_val_loss:
+                val_loss_increase += 1
+            else:
+                val_loss_increase = 0
+            previous_val_loss = avg_val_loss
+            writer.add_scalar('validation loss', avg_val_loss, global_step=e)
+            print(f'Epoch {e + 1}/{epochs}, Validation loss: {avg_val_loss:.4f}')
+            if val_loss_increase > 4:
+                break
+    return model
+
+
+def train_TraVAE(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss_func: Callable, epochs, batch_size,
+                 dataset: Dataset, val_set: Dataset) -> nn.Module:
+    # device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
+    device = torch.device('mps')
+    print("Training will run on {0}".format(device))
+    model = model.to(device)
+    train_loader = DataLoader(dataset, batch_size, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size, shuffle=True)
+    optimizer = init_optimizer((model.parameters()))
+    writer = SummaryWriter('logs/train')
+    val_loss_increase = 0
+    previous_val_loss = float('inf')
+    best_val_loss = float("inf")
+
+    for e in range(epochs):
+        k = 0.5
+        b = 6.5
+        beta = (1 + np.exp(-k * e + b))
+        # beta = 100
+        avg_loss = 0
+        num_batches = 0
+        model.train()
+        for (batch_idx, batch) in enumerate(tqdm(train_loader)):
+            optimizer.zero_grad()
+            output, mean, log_var, z = model.forward(batch.to(device))
+            loss = loss_func(output, mean, log_var, z, batch.to(device), beta)
+            loss.backward()
+            avg_loss += loss.item()
+            optimizer.step()
+            num_batches += 1
+        avg_loss /= (num_batches * batch_size)
+        writer.add_scalar('training loss', avg_loss, global_step=e)
+        print(f'Epoch {e + 1}/{epochs}, Loss: {avg_loss:.4f}')
+
+        # Validation
+        avg_val_loss = 0
+        num_batches = 0
+        model.eval()
+        with torch.no_grad():
+            for (batch_idx, batch) in enumerate(val_loader):
+                val_output, val_mean, val_log_var, val_z = model.forward(batch.to(device))
+                val_loss = loss_func(val_output, val_mean, val_log_var, val_z, batch.to(device), beta=500)
+                avg_val_loss += val_loss
+                num_batches += 1
+            avg_val_loss /= (num_batches * batch_size)
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 model.save()

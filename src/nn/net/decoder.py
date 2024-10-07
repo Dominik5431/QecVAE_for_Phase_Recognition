@@ -35,37 +35,37 @@ class TransformerDecoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dims, distance, channels):
+    def __init__(self, latent_dims, distance, channels, device: torch.device = torch.device('cpu')):
         super(Decoder, self).__init__()
         self.linear2 = nn.Linear(latent_dims, 20)
         self.dropout = nn.Dropout(0.25)
         self.bn4 = nn.BatchNorm1d(20)
-        self.linear1 = nn.Linear(20, (40 * int(0.125 * distance + 3) * int(0.125 * distance + 3)))
-        self.bn3 = nn.BatchNorm1d((40 * int(0.125 * distance + 3) * int(0.125 * distance + 3)))
-        self.unflatten = nn.Unflatten(1, (40, int(0.125 * distance + 3), int(0.125 * distance + 3)))
+        self.linear1 = nn.Linear(20, (10 * int(0.25 * distance + 3) * int(0.25 * distance + 3)))
+        self.bn3 = nn.BatchNorm1d((10 * int(0.25 * distance + 3) * int(0.25 * distance + 3)))
+        self.unflatten = nn.Unflatten(1, (10, int(0.25 * distance + 3), int(0.25 * distance + 3)))
         # self.max_unpool2 = nn.MaxUnpool2d(kernel_size=2, stride=2, padding=1)
         # self.max_unpool2 = MaxUnpool2d(kernel_size=2, stride=2, padding=1)
-        self.deconv3_2 = nn.ConvTranspose2d(40, 40, kernel_size=2, stride=1, padding=1, bias=True)
-        self.deconv3_1 = nn.ConvTranspose2d(40, 20, kernel_size=2, stride=1, padding=1, bias=True)
-        self.bn2 = nn.BatchNorm2d(20)
+        # self.deconv3_2 = nn.ConvTranspose2d(20, 20, kernel_size=2, stride=1, padding=1, bias=True)
+        # self.deconv3_1 = nn.ConvTranspose2d(20, 10, kernel_size=2, stride=1, padding=1, bias=True)
+        self.bn2 = nn.BatchNorm2d(10)
         # self.max_unpool1 = nn.MaxUnpool2d(kernel_size=2, stride=2, padding=1)
-        self.deconv2_2 = nn.ConvTranspose2d(20, 20, kernel_size=2, stride=1, padding=1, bias=True)
-        self.deconv2_1 = nn.ConvTranspose2d(20, 10, kernel_size=2, stride=1, padding=1, bias=True)
-        self.bn1 = nn.BatchNorm2d(10)
+        self.deconv2_2 = nn.ConvTranspose2d(10, 10, kernel_size=2, stride=1, padding=1, bias=True)
+        self.deconv2_1 = nn.ConvTranspose2d(10, 5, kernel_size=2, stride=1, padding=1, bias=True)
+        self.bn1 = nn.BatchNorm2d(5)
 
-        self.deconv1_2 = nn.ConvTranspose2d(10, 10, kernel_size=2, stride=1, padding=1, bias=True)
-        self.deconv1_1 = nn.ConvTranspose2d(10, channels, kernel_size=2, stride=1, padding=1, bias=True)
+        self.deconv1_2 = nn.ConvTranspose2d(5, 5, kernel_size=2, stride=1, padding=1, bias=True)
+        self.deconv1_1 = nn.ConvTranspose2d(5, channels, kernel_size=2, stride=1, padding=1, bias=True)
 
     def forward(self, z, indices1, indices2, input_size1, input_size2):
         x = F.relu(self.bn4(self.dropout(self.linear2(z))))
         x = F.relu(self.bn3(self.linear1(x)))
         x = self.unflatten(x)
         # x = self.max_unpool2(x, indices2, output_size=input_size2)
-        x = F.interpolate(x, size=(2 * x.size()[2] - 1, 2 * x.size()[3] - 1), mode='bilinear', align_corners=True)
-        x = F.relu(self.bn2(self.deconv3_1(F.relu(self.deconv3_2(x)))))
-        x = F.interpolate(x, size=(2 * x.size()[2] - 1, 2 * x.size()[3] - 1), mode='bilinear', align_corners=True)
+        # x = F.interpolate(x, size=(2 * x.size()[2] - 1, 2 * x.size()[3] - 1), mode='bilinear', align_corners=True)
+        # x = F.relu(self.bn2(self.deconv3_1(F.relu(self.deconv3_2(x)))))
+        x = F.interpolate(x, size=(input_size2[2], input_size2[3]), mode='bilinear', align_corners=True)
         x = F.relu(self.bn1(self.deconv2_1(F.relu(self.deconv2_2(x)))))
-        x = F.interpolate(x, size=(2 * x.size()[2] - 1, 2 * x.size()[3] - 1), mode='bilinear', align_corners=True)
+        x = F.interpolate(x, size=(input_size1[2], input_size1[3]), mode='bilinear', align_corners=True)
         x = F.tanh(self.deconv1_1(F.relu(self.deconv1_2(x))))
         return x
 
@@ -132,24 +132,28 @@ class DecoderSkip(nn.Module):
 class DecoderSimple(nn.Module):
     def __init__(self, latent_dims: int, distance: int, channels: int):
         super(DecoderSimple, self).__init__()
-        self.linear2 = nn.Linear(latent_dims, 100)
-        self.dropout = nn.Dropout(0.5)
+        self.linear2 = nn.Linear(latent_dims, 20)
+        self.dropout = nn.Dropout(0.3)
+        self.linear_log_2 = nn.Linear(20, 20)
+        self.linear_log_1 = nn.Linear(20, 4 * distance)
         # self.linear1 = nn.Linear(100, 10 * int(0.5 * (distance + 2)) * int(0.5 * (distance + 3)))
         # self.unflatten = nn.Unflatten(1, (10, int(0.5 * (distance + 2)), int(0.5 * (distance + 3))))
-        self.linear1 = nn.Linear(100, 10 * int(0.5 * (distance + 3)) * int(0.5 * (distance + 3)))
+        self.linear1 = nn.Linear(20, 10 * int(0.5 * (distance + 3)) * int(0.5 * (distance + 3)))
         self.unflatten = nn.Unflatten(1, (10, int(0.5 * (distance + 3)), int(0.5 * (distance + 3))))
         # self.max_unpool = nn.MaxUnpool2d(kernel_size=2, stride=2, padding=1)
         self.max_unpool = MaxUnpool2d(kernel_size=2, stride=2, padding=1)
         self.deconv = nn.ConvTranspose2d(10, channels, kernel_size=2, stride=1, padding=1, bias=True)
 
-    def forward(self, z, indices1, indices2, input_size1, input_size2):
+    def forward(self, z, indices1, indices2, input_size1, input_size2, inf_trans):
         x = F.relu(self.linear2(z))
         x = self.dropout(x)
-        x = F.relu(self.linear1(x))
-        x = self.unflatten(x)
-        x = self.max_unpool(x, indices1, output_size=input_size1)
-        x = F.tanh(self.deconv(x))  # changed from tanh to sigmoid on 29.04., undone 08.05. --> rather MSE than BCE
-        return x
+        s = F.relu(self.linear1(x))
+        s = self.unflatten(s)
+        s = self.max_unpool(s, indices1, output_size=input_size1)
+        s = F.tanh(self.deconv(s))  # changed from tanh to sigmoid on 29.04., undone 08.05. --> rather MSE than BCE
+        l = F.relu(self.linear_log_2(x)) + inf_trans
+        l = F.tanh(self.linear_log_1(l))
+        return s, l
 
 
 class DecoderDeepSkip(nn.Module):

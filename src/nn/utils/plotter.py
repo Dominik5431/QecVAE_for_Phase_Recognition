@@ -67,71 +67,89 @@ def plot_latent_mean(latents: dict, random_flip: bool, structure: str):
 
 
 
-def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str, noise_model: str, show = True):
+def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str, noise_model: str, show = True, surface: bool = False):
     dists = list(latents.keys())
     coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
-    for k, dist in enumerate(dists):
-        if dist == 7 or dist == 9 or dist == 39:
-            continue
-        noises = list(latents[dist].keys())
-        print(noises)
-        latent = list(latents[dist].values())
-        zs = np.array(list(map(lambda x: torch.sum(x[0], dim=1).cpu().detach().numpy(), latent)))
-        print(zs.shape)
-        print(zs)
-        # print(np.shape(zs))
-        flips = np.array(list(map(lambda x: x[3].cpu().detach().numpy(), latent)))
-        # print(np.shape(flips))
-        if noise_model == 'BitFlip':
-            noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
-        else:
+    if surface:
+        structure = 'TraVAE'
+        for k, dist in enumerate(dists):
+            noises = list(latents[dist].keys())
+            print(noises)
+            latent = list(latents[dist].values())
+            print('here', latent[0].size())
+            zs = np.array(list(map(lambda x: torch.sum(torch.abs(x), dim=1).cpu().detach().numpy(), latent)))
+
             noises = np.array(list(map(lambda x: 4 / (np.log(3 * (1 - x) / x)), noises)))
 
-        print(noises)
-        der = np.zeros(len(noises))
-        means = np.zeros(len(noises))
-        unc = np.zeros(len(noises))
-        for i in range(1, len(noises)):
-                # vals = np.zeros(np.sum(idxs[i]))
-                # vals = zs[i][idx][:, 0]
-            vals = zs[i][np.where(flips[i] == -1)]
-            means[i] = np.mean(vals)
-            # unc[i] = simple_bootstrap(vals, np.mean, r=100)
-            der[i] = np.mean(vals ** 2) - np.mean(vals) ** 2
-        der = smooth(der, 7)
+            means = np.mean(zs, axis=1)
+            var = np.var(zs, axis=1, ddof=1)
 
-        ax1.errorbar(noises[1:], means[1:], yerr=unc[1:], color=coloring[k], linestyle='dashed')
-        # print(unc[1:])
-        # unc2 = np.zeros(len(noises))
-        #for i in range(len(noises)):
-        #    unc2[i] = simple_bootstrap(latent[i][0], lambda x: torch.mean(x ** 2).cpu().detach().numpy() - torch.mean(
-        #        torch.abs(x)).cpu().detach().numpy() ** 2)
+            # var = smooth(var, 5)
 
-        ax2.plot(noises[1:], dist * der[1:], color=coloring[k], label=str(dist))
-        if noise_model == 'BitFlip':
-            plt.vlines(0.951, 0, max(dist * der), colors='red', linestyles='dashed')
-        else:
-            plt.vlines(1.565, 0, max(dist * der), colors='red', linestyles='dashed')
-            # plt.vlines(1.373, 0, max(dist * der), colors='red', linestyles='dashed')
-            # plt.vlines(0.109, 0, max(dist * der), colors='red', linestyles='dashed')
-        # # ax2.set_ylim([-1, 10])
-        # plt.xlim(0, 2)
+            ax1.plot(noises[1:], means[1:], color=coloring[k], linestyle='dashed')
+            ax2.plot(noises[1:], var[1:], color=coloring[k], label=str(dist))
+            # plt.vlines(0.189, 0, max(var), colors='red', linestyles='dashed')
+            plt.vlines(1.56, 0, max(var), colors='red', linestyles='dashed')
+    else:
+        for k, dist in enumerate(dists):
+            noises = list(latents[dist].keys())
+            print(noises)
+            latent = list(latents[dist].values())
+            zs = np.array(list(map(lambda x: torch.sum(x[0], dim=1).cpu().detach().numpy(), latent)))
+            print(zs.shape)
+            print(zs)
+            # print(np.shape(zs))
+            flips = np.array(list(map(lambda x: x[3].cpu().detach().numpy(), latent)))
+            # print(np.shape(flips))
+            if noise_model == 'BitFlip':
+                noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
+            else:
+                noises = np.array(list(map(lambda x: 4 / (np.log(3 * (1 - x) / x)), noises)))
 
-        def gaussian(x, A, mu, sigma):
-            return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+            print(noises)
+            der = np.zeros(len(noises))
+            means = np.zeros(len(noises))
+            unc = np.zeros(len(noises))
+            for i in range(1, len(noises)):
+                    # vals = np.zeros(np.sum(idxs[i]))
+                    # vals = zs[i][idx][:, 0]
+                vals = zs[i][np.where(flips[i] == -1)]
+                means[i] = np.mean(vals)
+                # unc[i] = simple_bootstrap(vals, np.mean, r=100)
+                der[i] = np.mean(vals ** 2) - np.mean(vals) ** 2
+            der = smooth(der, 7)
 
-            # popt, pcov = curve_fit(gaussian, np.array(noises)[40:160], der[40:160], p0=[-8, 0.1, 0.05])
-            # print(popt)
+            ax1.errorbar(noises[1:], means[1:], yerr=unc[1:], color=coloring[k], linestyle='dashed')
+            # print(unc[1:])
+            # unc2 = np.zeros(len(noises))
+            #for i in range(len(noises)):
+            #    unc2[i] = simple_bootstrap(latent[i][0], lambda x: torch.mean(x ** 2).cpu().detach().numpy() - torch.mean(
+            #        torch.abs(x)).cpu().detach().numpy() ** 2)
 
-            #ax2.plot(noises, gaussian(np.array(noises), *popt))
+            ax2.plot(noises[1:], dist * der[1:], color=coloring[k], label=str(dist))
+            if noise_model == 'BitFlip':
+                plt.vlines(0.951, 0, max(dist * der), colors='red', linestyles='dashed')
+            else:
+                plt.vlines(1.565, 0, max(dist * der), colors='red', linestyles='dashed')
+                plt.vlines(1.373, 0, max(dist * der), colors='red', linestyles='dashed')
+                # plt.vlines(1.373, 0, max(dist * der), colors='red', linestyles='dashed')
+                # plt.vlines(0.109, 0, max(dist * der), colors='red', linestyles='dashed')
+            # # ax2.set_ylim([-1, 10])
+            # plt.xlim(0, 2)
 
+            def gaussian(x, A, mu, sigma):
+                return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
 
+                # popt, pcov = curve_fit(gaussian, np.array(noises)[40:160], der[40:160], p0=[-8, 0.1, 0.05])
+                # print(popt)
+
+                #ax2.plot(noises, gaussian(np.array(noises), *popt))
     plt.title("Structure: " + structure)
     # ax1.tick_params(axis='y', labelcolor='black')
-    ax1.set_xlabel('associated temperature')
-    # ax1.set_xlabel('bitflip probability p')
+    # ax1.set_xlabel('associated temperature')
+    ax1.set_xlabel('noise probability p')
     ax1.set_ylabel(r'mean $\langle \mu \rangle$ single branch')
     ax2.tick_params(axis='y', labelcolor='blue')
     ax2.set_ylabel(r'$d \cdot $ susceptibility', color='blue')
@@ -309,22 +327,34 @@ def plot_reconstruction_derivative(reconstructions: dict, random_flip: bool, str
     plt.show()
 
 
-def plot_reconstruction(sample, noise, distance, model):
+def plot_reconstruction(data, noise, distance, model):
     model.load()
     model.eval()
-    plt.imshow(np.reshape(sample[0, 0].cpu().numpy(), (distance, distance)), cmap='magma')
-    print(np.sum(sample[0].cpu().numpy()))
-    print((distance ** 2 - (np.sum(sample[0].cpu().numpy()) if np.sum(sample[0].cpu().numpy()) > 0 else -np.sum(sample[0].cpu().numpy()))) / (2 * distance ** 2))
-    print(4 * (noise ** 3 * (1 - noise) + noise * (1 - noise) ** 3))
-    plt.colorbar()
+    sample = data[0]
+    syndrome = sample[0]
+    print(syndrome)
+    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+    im = axs[0].imshow(np.reshape(syndrome[0].cpu().numpy(), (distance, distance)), cmap='magma')
+    plt.colorbar(im)
+    im = axs[1].imshow(np.reshape(syndrome[1].cpu().numpy(), (distance, distance)), cmap='magma')
+    # print("Logicals: ", logicals)
+    print(np.sum(sample[0][0].cpu().numpy()))
+    # print("Average value: ", (distance ** 2 - (np.sum(sample[0][0].cpu().numpy()) if np.sum(sample[0].cpu().numpy()) > 0 else -np.sum(sample[0].cpu().numpy()))) / (2 * distance ** 2))
+    # print("Ratio of exited syndromes: ", 4 * (noise ** 3 * (1 - noise) + noise * (1 - noise) ** 3))
+    plt.colorbar(im)
     plt.show()
     with torch.no_grad():
-        output, mean, log_var = model.forward(sample.get_syndromes())
+        output, mean, log_var = model.forward(data.get_syndromes())
         # output = torch.where(output > 0.5, torch.ones_like(output), torch.zeros_like(output))
-    plt.imshow(np.reshape(output[0, 0].cpu().data.numpy(), (distance, distance)), cmap='magma')
-    plt.colorbar()
+    recon_syn = output[0]
+    # recon_log = output[1][0]
+    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+    im = axs[0].imshow(np.reshape(recon_syn[0].cpu().numpy(), (distance, distance)), cmap='magma')
+    plt.colorbar(im)
+    im = axs[1].imshow(np.reshape(recon_syn[1].cpu().numpy(), (distance, distance)), cmap='magma')
+    # print(recon_log)
+    plt.colorbar(im)
     plt.show()
-    print(loss_func(output, mean, log_var, sample.get_syndromes()))
 
 
 def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if other function works

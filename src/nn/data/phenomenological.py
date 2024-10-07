@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-from src.error_code.error_code import SurfaceCodePheno
+from src.error_code.error_code import ToricCodePheno
 import numpy as np
 from .qecdata import QECDataset
 

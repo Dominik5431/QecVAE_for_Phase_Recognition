@@ -25,18 +25,30 @@ def test_model_reconstruction_error(model: nn.Module, dataset: QECDataset,
 
 
 def test_model_latent_space(model: VariationalAutoencoder, dataset: Type[QECDataset]):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = model.double().to(device)
+    device = 'mps'
+    model = model.to(device)
     model.eval()
     test_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
     with torch.no_grad():
         for (batch_idx, batch) in enumerate(test_loader):
-            if dataset.random_flip:
-                z_mean, z_log_var, z, *_ = model.encoder.forward(batch[0].to(device))
+            if len(batch) == 3:
+                z_mean, z_log_var, z, *_ = model.encoder.forward([batch[0].to(device), batch[1].to(device)])
+                flips = batch[2]
             else:
-                z_mean, z_log_var, z, *_ = model.encoder.forward(batch.to(device))
-            flips = batch[1]
+                z_mean, z_log_var, z, *_ = model.encoder.forward(batch[0].to(device))
+                flips = batch[1]
     return z_mean, z_log_var, z, flips
+
+
+def test_latent_space_TraVAE(model, test_set, device):
+    model = model.to(device)
+    model.eval()
+    test_loader = DataLoader(test_set, batch_size=100, shuffle=False)
+    mean = torch.tensor([]).to(device)
+    with torch.no_grad():
+        for (batch_idx, batch) in enumerate(test_loader):
+            mean = torch.cat((mean, model.partial_forward(batch.to(device))), dim=0)
+    return torch.as_tensor(mean, device=device)
 
 
 def test_model_predictions(model: Type[Net], dataset: Type[QECDataset]):
