@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import scipy
 from matplotlib import gridspec
 import numpy as np
+
+from src.nn import Predictions
 from src.nn.utils.functions import smooth
 import seaborn as sns
 from tqdm import tqdm
@@ -70,8 +72,8 @@ def plot_latent_mean(latents: dict, random_flip: bool, structure: str):
 def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str, noise_model: str, show = True, surface: bool = False):
     dists = list(latents.keys())
     coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
-    fig, ax1 = plt.subplots()
-    ax2 = ax1.twinx()
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(6, 6))
+    # ax2 = ax1.twinx()
     if surface:
         structure = 'TraVAE'
         for k, dist in enumerate(dists):
@@ -94,69 +96,161 @@ def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str,
             plt.vlines(1.56, 0, max(var), colors='red', linestyles='dashed')
     else:
         for k, dist in enumerate(dists):
-            noises = list(latents[dist].keys())
-            print(noises)
-            latent = list(latents[dist].values())
-            zs = np.array(list(map(lambda x: torch.sum(x[0], dim=1).cpu().detach().numpy(), latent)))
-            print(zs.shape)
-            print(zs)
-            # print(np.shape(zs))
+            # if dist == 7 or dist == 9 or dist == 39:
+            #     continue
+            # if dist > 11:
+            #     continue
+            try:
+                noises = list(latents[dist].keys())
+                latent = list(latents[dist].values())
+                zs = np.array(list(map(lambda x: torch.sum(torch.abs(x[0]), dim=1).cpu().detach().numpy(), latent)))
+
+            except KeyError:
+                noises = list(latents[dist][dist].keys())
+                latent = list(latents[dist][dist].values())
+                zs = np.array(list(map(lambda x: torch.sum(torch.abs(x[0]), dim=1).cpu().detach().numpy(), latent)))
+
             flips = np.array(list(map(lambda x: x[3].cpu().detach().numpy(), latent)))
-            # print(np.shape(flips))
+
             if noise_model == 'BitFlip':
                 noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
             else:
                 noises = np.array(list(map(lambda x: 4 / (np.log(3 * (1 - x) / x)), noises)))
 
-            print(noises)
+
             der = np.zeros(len(noises))
             means = np.zeros(len(noises))
-            unc = np.zeros(len(noises))
+            unc = []
             for i in range(1, len(noises)):
-                    # vals = np.zeros(np.sum(idxs[i]))
-                    # vals = zs[i][idx][:, 0]
                 vals = zs[i][np.where(flips[i] == -1)]
-                means[i] = np.mean(vals)
-                # unc[i] = simple_bootstrap(vals, np.mean, r=100)
+                error_bars = simple_bootstrap(vals, np.mean, r=100)
+                means[i] = error_bars[0]
+                unc.append((error_bars[1], error_bars[2]))
                 der[i] = np.mean(vals ** 2) - np.mean(vals) ** 2
             der = smooth(der, 7)
+            unc = list(map(list, zip(*unc)))
+            print(unc)
 
-            ax1.errorbar(noises[1:], means[1:], yerr=unc[1:], color=coloring[k], linestyle='dashed')
+            ax1.errorbar(noises[1:], means[1:], yerr=unc, color=coloring[k], marker='o', markersize=1, linestyle='solid', label='d={}'.format(dist))
             # print(unc[1:])
             # unc2 = np.zeros(len(noises))
             #for i in range(len(noises)):
             #    unc2[i] = simple_bootstrap(latent[i][0], lambda x: torch.mean(x ** 2).cpu().detach().numpy() - torch.mean(
             #        torch.abs(x)).cpu().detach().numpy() ** 2)
 
-            ax2.plot(noises[1:], dist * der[1:], color=coloring[k], label=str(dist))
+            ax2.plot(noises[1:], der[1:], color=coloring[k], marker='o', markersize=1, linestyle='solid', label='d={}'.format(dist))
             if noise_model == 'BitFlip':
-                plt.vlines(0.951, 0, max(dist * der), colors='red', linestyles='dashed')
+                ax1.vlines(0.951, 0, 1.1 * max(means), colors='red', linestyles='dashed')
+                ax2.vlines(0.951, 0, 1.1 * max(der), colors='red', linestyles='dashed')
             else:
-                plt.vlines(1.565, 0, max(dist * der), colors='red', linestyles='dashed')
-                plt.vlines(1.373, 0, max(dist * der), colors='red', linestyles='dashed')
-                # plt.vlines(1.373, 0, max(dist * der), colors='red', linestyles='dashed')
-                # plt.vlines(0.109, 0, max(dist * der), colors='red', linestyles='dashed')
-            # # ax2.set_ylim([-1, 10])
-            # plt.xlim(0, 2)
+                ax1.vlines(1.565, 0, 1.1 * max(means), colors='red', linestyles='dashed')
+                ax2.vlines(1.373, 0, 1.1 * max(der), colors='grey', linestyles='dashed')
+                ax2.vlines(1.565, 0, 1.1 * max(der), colors='red', linestyles='dashed')
+                ax1.vlines(1.373, 0, 1.1 * max(means), colors='grey', linestyles='dashed')
 
-            def gaussian(x, A, mu, sigma):
-                return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
-
-                # popt, pcov = curve_fit(gaussian, np.array(noises)[40:160], der[40:160], p0=[-8, 0.1, 0.05])
-                # print(popt)
-
-                #ax2.plot(noises, gaussian(np.array(noises), *popt))
-    plt.title("Structure: " + structure)
+    # one more time for label
+    if noise_model == 'BitFlip':
+        ax1.vlines(0.951, 0, 1.1 * max(means), colors='red', linestyles='dashed', label='threshold')
+        ax2.vlines(0.951, 0, 1.1 * max(der), colors='red', linestyles='dashed', label='threshold')
+    else:
+        ax1.vlines(1.565, 0, 1.1 * max(means), colors='red', linestyles='dashed', label='threshold')
+        ax2.vlines(1.373, 0, 1.1 * max(der), colors='grey', linestyles='dashed')
+        ax2.vlines(1.565, 0, 1.1 * max(der), colors='red', linestyles='dashed')
+        ax1.vlines(1.373, 0, 1.1 * max(means), colors='grey', linestyles='dashed', label=r'$\frac{3}{2} \cdot$ bit-flip threshold')
     # ax1.tick_params(axis='y', labelcolor='black')
     # ax1.set_xlabel('associated temperature')
-    ax1.set_xlabel('noise probability p')
-    ax1.set_ylabel(r'mean $\langle \mu \rangle$ single branch')
-    ax2.tick_params(axis='y', labelcolor='blue')
-    ax2.set_ylabel(r'$d \cdot $ susceptibility', color='blue')
+    ax2.set_xlabel(r'associated temperature $T_\mathrm{NL}$')
+    ax1.set_ylabel(r'$\mu_\mathrm{op}$; single branch')
+    ax2.set_ylabel(r'susceptibility $\chi(\mu_\mathrm{op})$')
     plt.tight_layout()
-    plt.legend()
+    ax1.legend()
+    # ax2.legend()
+    # plt.savefig('depolarizing_mean_op.svg')
     if show:
         plt.show()
+
+
+def plot_correlation():
+    coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(6, 6))
+    noise_model = 'BitFlip'
+
+    dist = 21
+    name_dict_latent = "latents_bitflip_simple_dim1f7"
+
+    # name_dict_latent = "latents_BitFlip_standard_rf_21ff1_1"
+
+    latents = Predictions(name=name_dict_latent).load().get_dict()
+    noises = list(latents[dist].keys())
+    latent = list(latents[dist].values())
+    zs = np.array(list(map(lambda x: torch.sum(torch.abs(x[0]), dim=1).cpu().detach().numpy(), latent)))
+    flips = np.array(list(map(lambda x: x[3].cpu().detach().numpy(), latent)))
+
+    if noise_model == 'BitFlip':
+        noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
+    else:
+        noises = np.array(list(map(lambda x: 4 / (np.log(3 * (1 - x) / x)), noises)))
+
+    der = np.zeros(len(noises))
+    means = np.zeros(len(noises))
+    unc = []
+    for i in range(1, len(noises)):
+        vals = zs[i][np.where(flips[i] == -1)]
+        error_bars = simple_bootstrap(vals, np.mean, r=100)
+
+        means[i] = error_bars[0]
+        if i == 1:
+            scaling = means[i]
+        means[i] /= scaling
+        unc.append((error_bars[1], error_bars[2]))
+        der[i] = np.mean((vals/scaling) ** 2) - np.mean(vals/scaling) ** 2
+    der = smooth(der, 7)
+    unc = list(map(list, zip(*unc)))
+    print(unc)
+
+    ax1.errorbar(noises[1:], means[1:], yerr=unc, color=coloring[3], marker='o', markersize=1, linestyle='solid',
+                 label='d={}'.format(dist))
+    # print(unc[1:])
+    # unc2 = np.zeros(len(noises))
+    # for i in range(len(noises)):
+    #    unc2[i] = simple_bootstrap(latent[i][0], lambda x: torch.mean(x ** 2).cpu().detach().numpy() - torch.mean(
+    #        torch.abs(x)).cpu().detach().numpy() ** 2)
+
+    ax2.plot(noises[1:], der[1:], color=coloring[3], marker='o', markersize=1, linestyle='solid',
+             label='d={}'.format(dist))
+
+    mean = np.load('mean.npy')
+    sus = np.load('sus.npy')
+
+    temperature = np.arange(0.02, 3, 0.02)
+    noises = np.exp(-2 / temperature) / (1 + np.exp(-2 / temperature))
+
+    ax1.plot(2 / np.log((1 - noises) / noises), mean, color='blue', marker='o', markersize=1,
+             linestyle='solid', label=r'$\langle M \rangle$')
+    ax1.plot(2 / np.log((1 - noises) / noises), 1 - 2 * 4 * ((1 - noises) * noises ** 3 + (1 - noises) ** 3 * noises), color='black',
+             label='theory')
+
+    ax2.plot(2 / np.log((1 - noises) / noises), smooth(sus, 5), color='blue', marker='o', markersize=1,
+             linestyle='solid', label=r'$\chi (M)$')
+
+    if noise_model == 'BitFlip':
+        ax1.vlines(0.951, 0, 1.1 * max(means), colors='red', linestyles='dashed', label='threshold')
+        ax2.vlines(0.951, 0, 1.1 * max(der), colors='red', linestyles='dashed', label='threshold')
+
+    ax2.set_xlabel(r'associated temperature $T_\mathrm{NL}$')
+    ax1.set_ylabel(r' mean; $\mu_\mathrm{op}$, single branch, resized')
+    ax2.set_ylabel(r'susceptibility $\chi$, resized')
+    plt.tight_layout()
+    ax1.legend()
+    ax2.legend()
+    plt.savefig('bitflip_vs_mean.svg')
+    plt.show()
+
+
+if __name__ == '__main__':
+    plot_correlation()
+
+
 
 def plot_binder_cumulant(latents: dict, random_flip: bool, structure: str, noise_model: str, show = True):
     dists = list(latents.keys())
@@ -331,30 +425,83 @@ def plot_reconstruction(data, noise, distance, model):
     model.load()
     model.eval()
     sample = data[0]
-    syndrome = sample[0]
-    print(syndrome)
+    syndrome = sample[0][0]
+    print(syndrome.size())
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    im = axs[0].imshow(np.reshape(syndrome[0].cpu().numpy(), (distance, distance)), cmap='magma')
-    plt.colorbar(im)
-    im = axs[1].imshow(np.reshape(syndrome[1].cpu().numpy(), (distance, distance)), cmap='magma')
-    # print("Logicals: ", logicals)
-    print(np.sum(sample[0][0].cpu().numpy()))
-    # print("Average value: ", (distance ** 2 - (np.sum(sample[0][0].cpu().numpy()) if np.sum(sample[0].cpu().numpy()) > 0 else -np.sum(sample[0].cpu().numpy()))) / (2 * distance ** 2))
-    # print("Ratio of exited syndromes: ", 4 * (noise ** 3 * (1 - noise) + noise * (1 - noise) ** 3))
-    plt.colorbar(im)
+    im = axs[0].imshow(np.reshape(syndrome.cpu().numpy(), (distance, distance)), cmap='inferno')
+
+    im.axes.get_xaxis().set_visible(False)
+    im.axes.get_yaxis().set_visible(False)
+
+    bar = fig.colorbar(im, ticks=[-1, 1])
+
+    im = axs[1].imshow(np.reshape(syndrome.cpu().numpy(), (distance, distance)), cmap='inferno')
+    # plt.colorbar(im)
+
+    bar = fig.colorbar(im, ticks=[-1, 1])
+
+    im.axes.get_xaxis().set_visible(False)
+    im.axes.get_yaxis().set_visible(False)
+
+    # Adjust the axis limits to center the image
+    padding = 1  # Adjust this value to control how much space you want around the image
+    axs[0].set_xlim(-padding, distance)
+    axs[0].set_ylim(distance, -padding)  # Flip the y-axis to keep origin='upper'
+
+    axs[1].set_xlim(-padding, distance)
+    axs[1].set_ylim(distance, -padding)  # Flip the y-axis to keep origin='upper'
+
+    # Draw lines that extend beyond the image
+    for i in range(-padding, distance + 1):
+        axs[0].vlines(i - 0.5, -padding, distance, colors='black')
+        axs[0].hlines(i - 0.5, -padding, distance, colors='black')
+        axs[1].vlines(i, -padding, distance, colors='black')
+        axs[1].hlines(i, -padding, distance, colors='black')
+
+    plt.tight_layout()
+    plt.savefig('syndrome_bitflip_for_recon.svg')
     plt.show()
+
     with torch.no_grad():
-        output, mean, log_var = model.forward(data.get_syndromes())
+        output, mean, log_var = model.forward(data.get_syndromes()[0])
         # output = torch.where(output > 0.5, torch.ones_like(output), torch.zeros_like(output))
     recon_syn = output[0]
     # recon_log = output[1][0]
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    im = axs[0].imshow(np.reshape(recon_syn[0].cpu().numpy(), (distance, distance)), cmap='magma')
-    plt.colorbar(im)
-    im = axs[1].imshow(np.reshape(recon_syn[1].cpu().numpy(), (distance, distance)), cmap='magma')
-    # print(recon_log)
-    plt.colorbar(im)
+    im = axs[0].imshow(np.reshape(recon_syn.cpu().numpy(), (distance, distance)), cmap='magma')
+    im.axes.get_xaxis().set_visible(False)
+    im.axes.get_yaxis().set_visible(False)
+
+    fig.colorbar(im)
+
+    im = axs[1].imshow(np.reshape(recon_syn.cpu().numpy(), (distance, distance)), cmap='magma')
+    im.axes.get_xaxis().set_visible(False)
+    im.axes.get_yaxis().set_visible(False)
+
+    fig.colorbar(im)
+
+    im.axes.get_xaxis().set_visible(False)
+    im.axes.get_yaxis().set_visible(False)
+
+    # Adjust the axis limits to center the image
+    padding = 1  # Adjust this value to control how much space you want around the image
+    axs[0].set_xlim(-padding, distance)
+    axs[0].set_ylim(distance, -padding)  # Flip the y-axis to keep origin='upper'
+
+    axs[1].set_xlim(-padding, distance)
+    axs[1].set_ylim(distance, -padding)  # Flip the y-axis to keep origin='upper'
+
+    # Draw lines that extend beyond the image
+    for i in range(-padding, distance + 1):
+        axs[0].vlines(i - 0.5, -padding, distance, colors='black')
+        axs[0].hlines(i - 0.5, -padding, distance, colors='black')
+        axs[1].vlines(i, -padding, distance, colors='black')
+        axs[1].hlines(i, -padding, distance, colors='black')
+
+    plt.tight_layout()
+    plt.savefig('reconstruction_bitflip.svg')
     plt.show()
+    print(torch.mean(recon_syn))
 
 
 def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if other function works

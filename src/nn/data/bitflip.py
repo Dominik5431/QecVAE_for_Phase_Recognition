@@ -1,14 +1,17 @@
 import torch
 from torch.utils.data import Dataset
+from tqdm import tqdm
+
 from src.error_code.error_code import BitFlipToricCode
 import numpy as np
 from .qecdata import QECDataset
 
 
 class BitFlipToricData(QECDataset):
-    def __init__(self, distance: int, noises, name: str, load: bool, device, random_flip: bool, sequential: bool = False,
-                 supervised: bool = False, cluster: bool = False):
-        super().__init__(distance, noises, name, load, device=device, random_flip=random_flip, supervised=supervised, cluster=cluster)
+    def __init__(self, distance: int, noises, name: str, load: bool, random_flip: bool, device, sequential: bool = False,
+                 cluster: bool = False, only_syndromes : bool = False, supervised: bool = False,):
+        super().__init__(distance=distance, noises=noises, name=name, load=load, device=device, random_flip=random_flip,
+                         cluster=cluster, only_syndromes=only_syndromes, supervised=supervised)
         self.sequential = sequential
 
     def __len__(self):
@@ -17,19 +20,19 @@ class BitFlipToricData(QECDataset):
     def __getitem__(self, index):
         if self.supervised:
             return self.syndromes[index], self.labels[index]
-        elif self.train:
-            return self.syndromes[index]
-        elif not self.random_flip:
-            return self.syndromes[index]
-        else:
-            return self.syndromes[index], self.flips[index]
+        output = (self.syndromes[index],)
+        if not self.only_syndromes:
+            output = output + (self.logical[index],)
+        if not self.train:
+            output = output + (self.flips[index],)
+        return output
 
     def generate_data(self, n):
         syndromes = []  # deleted rounds, TODO check if shuffling is really doing the proper thing here
         flips = []
         labels = []
         logical = []
-        for noise in self.noises:
+        for noise in tqdm(self.noises):
             code = BitFlipToricCode(self.distance, noise, self.random_flip)
             if not self.train and self.random_flip and not self.supervised:
                 syndromes_noise, flips_noise = code.get_syndromes(n, self.train, self.supervised)

@@ -1,6 +1,9 @@
+import os
+import sys
 from pathlib import Path
 from datetime import datetime
 import matplotlib.pyplot as plt
+from PIL import Image
 from scipy.optimize import curve_fit
 from parameters import parameters
 import torch
@@ -13,7 +16,7 @@ from src.nn import DepolarizingToricData, BitFlipToricData, DepolarizingSurfaceD
 from src.nn import VariationalAutoencoder, TraVAE
 from src.nn.utils.plotter import plot_reconstruction_error, \
     plot_latent_susceptibility, plot_reconstruction_derivative, plot_reconstruction, plot_collapsed, \
-    plot_mean_variance_samples, plot_binder_cumulant
+    plot_mean_variance_samples, plot_binder_cumulant, plot_correlation
 from src.nn.train import train, train_TraVAE
 from src.nn.test import test_model_latent_space, test_model_reconstruction_error, test_latent_space_TraVAE
 from src.nn import Predictions
@@ -40,7 +43,8 @@ def prepare_data():
         if NOISE_MODEL == 'BitFlip':
             # data = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
             (BitFlipToricData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
-                              load=False, random_flip=random_flip, sequential=sequential,
+                              load=False, random_flip=random_flip, device=device, sequential=sequential,
+                              cluster=CLUSTER, only_syndromes=only_syndromes,
                               supervised=False)  # Supervised per default False
              .training()
              .initialize(num=DATA_SIZE)
@@ -48,7 +52,7 @@ def prepare_data():
         elif NOISE_MODEL == 'Depolarizing':
             (DepolarizingToricData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
                                    load=False, random_flip=random_flip, device=device, sequential=sequential,
-                                   only_syndromes=only_syndromes)
+                                   cluster=CLUSTER, only_syndromes=only_syndromes)
              .training()
              .initialize(num=DATA_SIZE)
              .save())
@@ -71,15 +75,13 @@ def train_network():
     else:
         if NOISE_MODEL == 'BitFlip':
             # data_train, data_val = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING,
-            data_train, data_val = (BitFlipToricData(distance=DISTANCE, noises=NOISES_TRAINING,
-                                                     name=name_data.format(DISTANCE),
-                                                     load=LOAD_DATA,
-                                                     random_flip=random_flip,
-                                                     sequential=sequential,
-                                                     supervised=False)
-                                    .training()
-                                    .initialize(num=DATA_SIZE)
-                                    .get_train_test_data(RATIO))
+            data_train, data_val = (
+                BitFlipToricData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
+                                 load=LOAD_DATA, random_flip=random_flip, device=device, sequential=sequential,
+                                 cluster=CLUSTER, only_syndromes=only_syndromes, supervised=False)
+                .training()
+                .initialize(num=DATA_SIZE)
+                .get_train_test_data(RATIO))
         elif NOISE_MODEL == 'Depolarizing':
             data_train, data_val = (DepolarizingToricData(distance=DISTANCE, noises=NOISES_TRAINING,
                                                           name=name_data.format(DISTANCE),
@@ -87,6 +89,7 @@ def train_network():
                                                           random_flip=random_flip,
                                                           device=device,
                                                           sequential=sequential,
+                                                          cluster=CLUSTER,
                                                           only_syndromes=only_syndromes)
                                     .training()
                                     .initialize(num=DATA_SIZE)
@@ -95,10 +98,8 @@ def train_network():
         assert data_train is not None
         assert data_val is not None
         net = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_NN.format(DISTANCE), structure=STRUCTURE,
-                                     noise=NOISE_MODEL, device=device)
+                                     noise=NOISE_MODEL, device=device, cluster=CLUSTER)
         net = train(net, make_optimizer(LR), loss_func_MSE, NUM_EPOCHS, BATCH_SIZE, data_train, data_val)
-        for name, param in net.named_parameters():
-            print(name, param)
     return net
 
 
@@ -120,10 +121,10 @@ def evaluate_latent_space():
         return latents.get_dict()
     else:
         model = VariationalAutoencoder(LATENT_DIMS, DISTANCE, name_NN.format(DISTANCE), structure=STRUCTURE,
-                                       noise=NOISE_MODEL, device=device)
+                                       noise=NOISE_MODEL, device=device, cluster=CLUSTER)
         model.load()
         # Use dictionary with noise value and return values to store return data from VAE while testing
-        latents = Predictions(name=name_dict_latent)
+        latents = Predictions(name=name_dict_latent, cluster=CLUSTER)
         latents.load()
         results = {}
         for noise in tqdm(NOISES_TESTING):
@@ -132,18 +133,23 @@ def evaluate_latent_space():
                 # data_test = BitFlipRotatedSurfaceData(distance=DISTANCE, noises=[noise],
                 data_test = (BitFlipToricData(distance=DISTANCE, noises=[noise],
                                               name="BFS_Testing-{0}".format(DISTANCE),
-                                              load=False, random_flip=random_flip, sequential=sequential)
+                                              load=False, random_flip=random_flip, sequential=sequential,
+                                              device=device, cluster=CLUSTER, only_syndromes=only_syndromes)
                              .eval()
-                             .initialize(num=5000))
+                             .initialize(num=500))
             elif NOISE_MODEL == 'Depolarizing':
                 data_test = (DepolarizingToricData(distance=DISTANCE, noises=[noise],
                                                    name="DS_Testing-{0}".format(DISTANCE),
                                                    load=False, random_flip=random_flip, sequential=sequential,
-                                                   device=device, only_syndromes=only_syndromes)
+                                                   device=device, cluster=CLUSTER, only_syndromes=only_syndromes)
                              .eval()
-                             .initialize(num=100))
+                             .initialize(num=500))
             assert data_test is not None
-            results[noise] = test_model_latent_space(model, data_test)  # z_mean, z_log_var, z, flips
+            # res = test_model_latent_space(model, data_test)
+
+            m = torch.mean(data_test.syndromes, dim=(1, 2, 3))
+            sus = (torch.mean(m ** 2) - torch.mean(torch.abs(m)) ** 2).cpu().detach().numpy()
+            results[noise] = test_model_latent_space(model, data_test) + (m, sus,)  # z_mean, z_log_var, z, flips, mean
         latents.add(DISTANCE, results)
         latents.save()
         return latents.get_dict()
@@ -206,6 +212,11 @@ def mean_variance_samples():
     raw.save()
 
 
+# s = sys.argv[1]
+# s = 0
+# s = int(s)
+distances = [7, 9, 11, 15, 21, 27, 33]
+
 if __name__ == "__main__":
     logger = logging.getLogger('vae_threshold')
     logger.setLevel(level=logging.DEBUG)
@@ -216,16 +227,19 @@ if __name__ == "__main__":
     # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     # plt.set_loglevel("notset")
 
-    device = torch.device('mps')
+    device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
 
     ''' Hyperparameters '''
 
     (random_flip, LR, NOISE_MODEL, NUM_EPOCHS, BATCH_SIZE, DATA_SIZE, DISTANCE, LOAD_DATA, SAVE_DATA, NOISES_TRAINING,
      NOISES_TESTING, RATIO, LATENT_DIMS, STRUCTURE, SUPERVISED, CLUSTER) = parameters()
 
+    # DISTANCE = distances[s]
+    # NOISE_MODEL = 'BitFlip' if s < 7 else 'Depolarizing'
+
     sequential = False
-    surface = True
-    only_syndromes = False
+    surface = False
+    only_syndromes = True
 
     trade_dict = {
         'n': DISTANCE ** 2,
@@ -250,21 +264,26 @@ if __name__ == "__main__":
     # r7: TraVAE again with less params
     # r8: smaller dataset
     # r9: smaller TraVAE
+    # r10: avg pool with logicals
+    # r11: reduced complexity of model
+
+    # ff1: final round for mid-term presentation
 
     name_data = str(NOISE_MODEL) + "_" + ("rf_" if random_flip else "") + ("sq_" if sequential else "") + (
-        "labels_" if SUPERVISED else "") + "r7-{0}"
+        "labels_" if SUPERVISED else "") + "f2-" + str(DISTANCE)
     name_NN = "net_NN_" + str(NOISE_MODEL) + "_" + STRUCTURE + "_dim" + str(LATENT_DIMS) + (
-        "_rf_" if random_flip else "") + "r7-" + str(DISTANCE)
+        "_rf_" if random_flip else "") + "f2-" + str(DISTANCE)
     name_dict_recon = "reconstruction_" + str(NOISE_MODEL) + "_" + STRUCTURE + (
-        "_rf_" if random_flip else "") + str(DISTANCE) + "r7"
+        "_rf_" if random_flip else "") + str(DISTANCE) + "f2"
     name_dict_latent = "latents_" + str(NOISE_MODEL) + "_" + STRUCTURE + (
-        "_rf_" if random_flip else "") + str(DISTANCE) + "r7"
+        "_rf_" if random_flip else "") + str(DISTANCE) + "f2"
 
-    # name_dict_latent = ("latents_BitFlip_ising_rf_f2_2")
+    # name_dict_latent = "latents_bitflip_simple_dim1f7"
+    # name_dict_latent = "latents_Depolarizing_standard_rf_r7"
     # name_dict_recon = "reconstruction_depolarizing_simple_dim1f8"
-    # name_NN = "net_NN_Depolarizing_simple_dim1_rf_l1-{0}"
+    name_NN = "net_NN_BitFlip_ising_dim1_rf_f2_2-27"
 
-    task = 1
+    task = 100
 
     if task in (0, 1, 2, 20) and not CLUSTER:
         with open("config.txt", "a") as f:
@@ -276,7 +295,81 @@ if __name__ == "__main__":
             f.write("Learning: lr: " + str(LR) + ", epochs: " + str(NUM_EPOCHS) + ", sz: " + str(DATA_SIZE)
                     + ", distance: " + str(DISTANCE) + "\n")
             f.write("Task: " + str(task) + task_description[task] + "\n")
+    if task == -10:
+        print(os.getcwd())
+        plot_correlation()
+    if task == -100:  # temp to plot Ising data and Toric code data
+        # temperature = 0.9
+        # noise = np.exp(-4 / temperature) / (1 / 3 + np.exp(-4 / temperature))
+        DISTANCE = 29
+        noise = 0.01
+        sample = BitFlipToricData(distance=DISTANCE, noises=[noise],
+                                  name="BFS_Testing-{0}".format(DISTANCE),
+                                  load=False, random_flip=False,
+                                  sequential=sequential, device=device,
+                                  only_syndromes=only_syndromes).training().initialize(
+            10)
+        sample = sample[0]
+        syndrome = sample[0][0].squeeze()
+        print(syndrome.shape)
 
+        '''
+        fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+        im = axs[0].imshow(np.reshape(syndrome[0].cpu().numpy(), (DISTANCE, DISTANCE)), cmap='magma')
+        plt.colorbar(im)
+        im = axs[1].imshow(np.reshape(syndrome[1].cpu().numpy(), (DISTANCE, DISTANCE)), cmap='magma')
+        '''
+        '''
+        DISTANCE = 29
+
+        image_path = 'Ising_lattice_2.png'  # Replace with your image path
+        img = Image.open(image_path)
+
+        # Convert the image to grayscale for easier pixel analysis
+        img_gray = img.convert('L')
+        pixel_values = np.array(img_gray)
+
+        # Normalize pixel values between 0 and 1 for easier thresholding (0: black, 255: yellow)
+        normalized_pixels = pixel_values / 255.0
+
+        # Define thresholds for classification: black (close to 0) as +1, yellow (close to 1) as -1
+        threshold = 0.5
+        processed_pixels = np.where(normalized_pixels < threshold, 1, -1)
+
+        # Resize the processed pixel data to a 29x29 grid using nearest neighbor method
+        lattice_size = (29, 29)
+        lattice_image = Image.fromarray((processed_pixels * 127.5 + 127.5).astype(np.uint8)).resize(lattice_size,
+                                                                                                    Image.NEAREST)
+
+        # Convert the resized image back to a numpy array and map back to +1 and -1
+        lattice_array = np.where(np.array(lattice_image) < 128, 1, -1)
+        syndrome = -1 * torch.as_tensor(lattice_array)
+        '''
+
+        fig, ax = plt.subplots()
+        im = ax.imshow(np.reshape(syndrome.cpu().numpy(), (DISTANCE, DISTANCE)), cmap='inferno', origin='upper',
+                       vmin=-1, vmax=1)
+
+        ax.set_title(r'$d=29$')
+        bar = fig.colorbar(im, ticks=[-1, 1])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        im.axes.get_xaxis().set_visible(False)
+        im.axes.get_yaxis().set_visible(False)
+
+        # Adjust the axis limits to center the image
+        padding = 1  # Adjust this value to control how much space you want around the image
+        ax.set_xlim(-padding, DISTANCE)
+        ax.set_ylim(DISTANCE, -padding)  # Flip the y-axis to keep origin='upper'
+
+        # Draw lines that extend beyond the image
+        for i in range(-padding, DISTANCE + 1):
+            ax.vlines(i - 0.5, -padding, DISTANCE, colors='black')
+            ax.hlines(i - 0.5, -padding, DISTANCE, colors='black')
+
+        plt.tight_layout()
+        plt.savefig('syndrome_Toric_low_T.svg')
+        plt.show()
     if task == 0:  # Create data
         prepare_data()
     elif task == 1:  # Training a network
@@ -315,14 +408,14 @@ if __name__ == "__main__":
         plot_reconstruction_error(recon, random_flip, STRUCTURE)
         plot_reconstruction_derivative(recon, random_flip, STRUCTURE)
     elif task == 200:  # merge data dicts together
-        latents = Predictions(name=name_dict_latent)
-        # dists = [15, 21, 27, 33, 37, 43]
-        dists = [27, 43]
+        latents = Predictions(name="latents_Depolarizing_standard_rf_r7")
+        dists = [7, 9, 11, 17, 21]
+        # dists = [27, 43]
         for i, dist in enumerate(dists):
             print(dist)
-            print("latents_BitFlip_simple_rf_" + str(dist) + "f2_2.pkl")
-            dictionary = Predictions(name="latents_BitFlip_ising_rf_" + str(dist) + "f2_2").load().get_dict()
-            latents.add(dist, dictionary[dist])
+            print("latents_Depolarizing_standard_rf_" + str(dist) + "r7.pkl")
+            dictionary = Predictions(name="latents_Depolarizing_standard_rf_" + str(dist) + "r7").load().get_dict()
+            latents.add(dist, dictionary)
         latents.save()
     elif task == 31:
         dists = [7, 9, 15, 21, 27]
@@ -424,12 +517,13 @@ if __name__ == "__main__":
                 plt.show()
     elif task == 100:
         # noise = 0.15
-        temperature = 0.9
-        noise = np.exp(-4 / temperature) / (1 / 3 + np.exp(-4 / temperature))
+        # temperature = 0.9
+        # noise = np.exp(-4 / temperature) / (1 / 3 + np.exp(-4 / temperature))
+        noise = 0.109
         print(noise)
-        sample = DepolarizingToricData(distance=DISTANCE, noises=[noise],
+        sample = BitFlipToricData(distance=DISTANCE, noises=[noise],
                                        name="BFS_Testing-{0}".format(DISTANCE),
-                                       load=False, random_flip=random_flip,
+                                       load=False, random_flip=False,
                                        sequential=sequential, device=device,
                                        only_syndromes=only_syndromes).training().initialize(
             10)

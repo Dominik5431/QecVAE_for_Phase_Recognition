@@ -39,7 +39,7 @@ class QECDataset(Dataset, ABC):
             elif self.random_flip and not self.only_syndromes:
                 self.syndromes, self.logical, self.flips = self.generate_data(num)
             elif not self.random_flip and self.only_syndromes:
-                self.syndromes, self.logical = self.generate_data(num)
+                self.syndromes = self.generate_data(num)
             else:
                 self.syndromes = self.generate_data(num)
         return self
@@ -61,28 +61,28 @@ class QECDataset(Dataset, ABC):
     def save(self):
         pre = ""
         if not self.cluster:
-            pre += str(Path().resolve().parent)
+            pre += str(Path().resolve().parent) + "/"
 
-        torch.save(self.syndromes, pre + "/data/syndromes_{0}.pt".format(self.name))
+        torch.save(self.syndromes, pre + "data/syndromes_{0}.pt".format(self.name))
         if self.supervised:
-            torch.save(self.labels, pre + "/data/labels_{0}.pt".format(self.name))
+            torch.save(self.labels, pre + "data/labels_{0}.pt".format(self.name))
         if not self.train and self.random_flip:
-            torch.save(self.flips, str(Path().resolve().parent) + "/data/flips_{0}.pt".format(self.name))
+            torch.save(self.flips, str(Path().resolve().parent) + "data/flips_{0}.pt".format(self.name))
         if not self.only_syndromes:
-            torch.save(self.logical, pre + "/data/logical_{0}.pt".format(self.name))
+            torch.save(self.logical, pre + "data/logical_{0}.pt".format(self.name))
 
     def load(self):
         pre = ""
         if not self.cluster:
-            pre += str(Path().resolve().parent)
+            pre += str(Path().resolve().parent) + "/"
 
-        self.syndromes = torch.load(pre + "/data/syndromes_{0}.pt".format(self.name), mmap=True, map_location=self.device)
+        self.syndromes = torch.load(pre + "data/syndromes_{0}.pt".format(self.name), mmap=True, map_location=self.device)
         if self.supervised:
-            self.labels = torch.load(pre + "/data/labels_{0}.pt".format(self.name), mmap=True, map_location=self.device)
+            self.labels = torch.load(pre + "data/labels_{0}.pt".format(self.name), mmap=True, map_location=self.device)
         if not self.train and self.random_flip:
-            self.flips = torch.load(pre + "/data/flips_{0}.pt".format(self.name), mmap=True, map_location=self.device)
+            self.flips = torch.load(pre + "data/flips_{0}.pt".format(self.name), mmap=True, map_location=self.device)
         if not self.only_syndromes:
-            self.logical = torch.load(pre + "/data/logical_{0}.pt".format(self.name), mmap=True, map_location=self.device)
+            self.logical = torch.load(pre + "data/logical_{0}.pt".format(self.name), mmap=True, map_location=self.device)
 
     def get_syndromes(self):
         return self.syndromes

@@ -13,7 +13,7 @@ from src.nn.utils.plotter import plot_latent_mean, plot_latent_susceptibility, s
     plot_reconstruction_error, plot_reconstruction_derivative
 
 if __name__ == '__main__':
-    task = 3
+    task = 100
 
     # s = sys.argv[1]
     # s = int(s)

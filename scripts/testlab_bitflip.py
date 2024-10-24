@@ -65,7 +65,7 @@ def sus(noise):
     return squared - abs_s ** 2
 
 
-distance = 25
+distance = 21
 task = 3
 
 if task == 0:
@@ -211,6 +211,7 @@ elif task == 3:
     temperature = np.arange(0.02, 3, 0.02)
     noises = np.exp(-2 / temperature) / (1 + np.exp(-2 / temperature))
     sus = np.zeros(len(noises))
+    means = np.zeros(len(noises))
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
     for i, noise in enumerate(tqdm(noises)):
@@ -224,9 +225,10 @@ elif task == 3:
         # print(noise)
         # print(mean)
         sus[i] = (torch.mean(mean ** 2) - torch.mean(torch.abs(mean)) ** 2).cpu().detach().numpy()
-
+        means[i] = torch.mean(torch.abs(mean)).cpu().detach().numpy()
         # print('Need to obtain:', torch.var(mean))
         # print(s.shape)
+
 
     ax2.plot(2 / np.log((1 - noises) / noises), smooth(sus, 5), color='blue', label='susceptibility')
     plt.vlines(0.95, 0, max(sus), colors='red', linestyles='dashed', label='threshold')
@@ -238,4 +240,7 @@ elif task == 3:
     ax1.set_ylabel(r'mean $\langle M \rangle$')
     ax2.set_ylabel(r'$d \cdot$ susceptibility')
     plt.show()
+
+    np.save('mean.npy', means)
+    np.save('sus.npy', sus)
     print(sus)

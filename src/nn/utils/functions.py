@@ -157,11 +157,12 @@ def simple_bootstrap(x, f=np.mean, c=0.68, r=100):
     c (float): confidence interval in [0, 1]
     r (int): number of bootstrap resamplings
 
-    Returns estimate of stat, lower error bar, upper error bar.
+    Returns estimate of stat, upper error bar, lower error bar.
     """
     assert 0 <= c <= 1, 'Confidence interval must be in [0, 1].'
     # number of samples
     n = len(x)
+
     # stats of resampled datasets
     fs = np.asarray(
         [f(x[np.random.randint(0, n, size=n)]) for _ in range(r)]
@@ -172,7 +173,7 @@ def simple_bootstrap(x, f=np.mean, c=0.68, r=100):
     high = np.percentile(fs, med * (1 + c))
     low = np.percentile(fs, med * (1 - c))
     # estimate and uncertainties
-    return high - low
+    return val, high - val, val - low
 
 
 def get_spline(x, y, err):

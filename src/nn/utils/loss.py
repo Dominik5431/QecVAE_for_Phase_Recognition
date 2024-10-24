@@ -44,7 +44,10 @@ def loss_func_MSE(output, mean, log_var, target: torch.Tensor, beta, lambda_l1=1
     kl_loss = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
 
     # Append start token also to target tensor
-    device = output.device
+    if type(output) is tuple:
+        device = output[0].device
+    else:
+        device = output.device
 
     # start_token_value = 1
     # start_token = torch.full((target.size(0), 1), start_token_value, dtype=torch.long, device=device)
@@ -65,7 +68,7 @@ def loss_func_MSE(output, mean, log_var, target: torch.Tensor, beta, lambda_l1=1
 
     # L1 regularization on latent space
     # l1 = lambda_l1 * torch.sum(torch.abs(z))
-    if type(output) is list:
-        return beta * (reconstruction_loss(output[0], target[0]) + reconstruction_loss(output[1], target[1])) - kl_loss.mean()
+    if type(output) is tuple:
+        return beta * (reconstruction_loss(output[0], target[0]) + reconstruction_loss(output[1], target[1])) + kl_loss.mean()
     else:
         return beta * reconstruction_loss(output, target) + kl_loss  # + l1

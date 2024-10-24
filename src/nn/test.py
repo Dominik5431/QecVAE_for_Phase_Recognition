@@ -25,7 +25,7 @@ def test_model_reconstruction_error(model: nn.Module, dataset: QECDataset,
 
 
 def test_model_latent_space(model: VariationalAutoencoder, dataset: Type[QECDataset]):
-    device = 'mps'
+    device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
     model = model.to(device)
     model.eval()
     test_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
