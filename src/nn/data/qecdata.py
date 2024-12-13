@@ -6,7 +6,11 @@ from pathlib import Path
 
 
 class QECDataset(Dataset, ABC):
-    def __init__(self, distance: int, noises, name: str, load: bool, device: torch.device, random_flip: bool = False, supervised: bool = False, cluster: bool = False, only_syndromes: bool = False):
+    """
+        Custom Dataset for QEC data.
+        Upon initialization, the data samples are either generated or loaded.
+    """
+    def __init__(self, distance: int, noises, name: str, load: bool, device: torch.device, random_flip: bool = False, cluster: bool = False, only_syndromes: bool = False):
         super().__init__()
         self.train = True
         self.device = device
@@ -20,7 +24,6 @@ class QECDataset(Dataset, ABC):
         self.labels = None
         self.load_data = load
         self.cluster = cluster
-        self.supervised = supervised
         self.only_syndromes = only_syndromes
         if not (type(name) is str):
             raise ValueError
@@ -32,9 +35,8 @@ class QECDataset(Dataset, ABC):
             except NameError:
                 logging.error("No valid noise model specified.")
         else:
-            if self.supervised:
-                self.syndromes, self.labels = self.generate_data(num)  # Attention: in supervised mode no flips necessary!
-            elif self.random_flip and self.only_syndromes:
+            # Depending on which setting is chosen, syndromes, flips and/or logicals are needed.
+            if self.random_flip and self.only_syndromes:
                 self.syndromes, self.flips = self.generate_data(num)
             elif self.random_flip and not self.only_syndromes:
                 self.syndromes, self.logical, self.flips = self.generate_data(num)
@@ -45,16 +47,18 @@ class QECDataset(Dataset, ABC):
         return self
 
     def training(self):
-        if self.supervised:
-            # print("Training modus not available in supervised mode.")
-            return self
+        """
+        Sets training mode
+        :return: self
+        """
         self.train = True
         return self
 
     def eval(self):
-        if self.supervised:
-            # print("Training modus not available in supervised mode.")
-            return self
+        """
+        Sets eval mode
+        :return: self
+        """
         self.train = False
         return self
 
@@ -64,8 +68,6 @@ class QECDataset(Dataset, ABC):
             pre += str(Path().resolve().parent) + "/"
 
         torch.save(self.syndromes, pre + "data/syndromes_{0}.pt".format(self.name))
-        if self.supervised:
-            torch.save(self.labels, pre + "data/labels_{0}.pt".format(self.name))
         if not self.train and self.random_flip:
             torch.save(self.flips, str(Path().resolve().parent) + "data/flips_{0}.pt".format(self.name))
         if not self.only_syndromes:
@@ -77,8 +79,6 @@ class QECDataset(Dataset, ABC):
             pre += str(Path().resolve().parent) + "/"
 
         self.syndromes = torch.load(pre + "data/syndromes_{0}.pt".format(self.name), mmap=True, map_location=self.device)
-        if self.supervised:
-            self.labels = torch.load(pre + "data/labels_{0}.pt".format(self.name), mmap=True, map_location=self.device)
         if not self.train and self.random_flip:
             self.flips = torch.load(pre + "data/flips_{0}.pt".format(self.name), mmap=True, map_location=self.device)
         if not self.only_syndromes:
@@ -89,4 +89,10 @@ class QECDataset(Dataset, ABC):
 
     @abstractmethod
     def generate_data(self, n):
+        """
+            Method that generates the syndromes. Needs to be implemented by each class that inherits from this class.
+            Detailed implementation depends upon the specific qec code and noise model.
+            :param n: Number of samples to generate.
+            :return:
+        """
         raise NotImplementedError

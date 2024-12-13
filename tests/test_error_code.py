@@ -1,7 +1,6 @@
 import unittest
 import numpy as np
 from src.error_code.error_code import BitFlipToricCode, DepolarizingToricCode
-import matplotlib.pyplot as plt
 
 
 class TestErrorCode(unittest.TestCase):

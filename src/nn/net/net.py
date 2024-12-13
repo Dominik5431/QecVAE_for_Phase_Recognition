@@ -4,6 +4,10 @@ from pathlib import Path
 
 
 class Net(nn.Module):
+    """
+    Base class for all used machine learning models.
+    Implements custom save() and load() function.
+    """
     def __init__(self, name: str, cluster: bool = False):
         super(Net, self).__init__()
         self.name = name

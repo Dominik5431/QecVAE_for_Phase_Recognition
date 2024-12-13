@@ -5,20 +5,16 @@ from .net import *
 from .encoder import *
 from .decoder import *
 import subprocess as sp
-import os
-import time
-
-
-def get_gpu_memory():
-    command = "nvidia-smi --query-gpu=memory.free --format=csv"
-    memory_free_info = sp.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
-    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
-    return memory_free_values
 
 
 class VariationalAutoencoder(Net):
+    """
+    Base class to build the variational autoencoder and manage output from encoder and decoder.
+    """
     def __init__(self, latent_dims: int, distance: int, name: str, structure: str, noise: str, cluster: bool = False, device: torch.device = torch.device('cpu')):
         super(VariationalAutoencoder, self).__init__(name, cluster)
+
+        # Number of input channels
         if noise == 'BitFlip':
             channels = 1
         elif noise == 'Ising':
@@ -28,7 +24,9 @@ class VariationalAutoencoder(Net):
         else:
             raise ValueError('Invalid noise for this autoencoder structure.')
         assert channels > 0
+
         self.structure = structure
+        # Specify structure of the VAE
         if structure == 'standard':
             self.encoder = VariationalEncoder(latent_dims, distance, channels, device=device)
             self.decoder = Decoder(latent_dims, distance, channels, device=device)
@@ -50,8 +48,6 @@ class VariationalAutoencoder(Net):
         elif structure == 'transformer':
             self.encoder = TransformerEncoder(latent_dims, distance, channels)
             self.decoder = TransformerDecoder(latent_dims, distance, channels)
-        elif structure == 'pretrained':
-            pass
         else:
             raise Exception('Invalid structure specified.')
 
@@ -66,12 +62,6 @@ class VariationalAutoencoder(Net):
         # TODO add values that should be used for skip connections a return values of the encoder to give them to
         # the decoder as additional parameters
         return x, z_mean, z_log_var
-
-
-class VariationalAutoencoderPheno(Net):
-    def __init__(self, latent_dims: int, distance: int, name: str, structure: str):
-        super().__init__(name)
-        self.encoder = VariationalEncoderPheno(latent_dims, distance)
 
 
 class PositionalEncoding(nn.Module):
@@ -98,6 +88,9 @@ class LearnablePositionalEncoding(nn.Module):
 
 
 class TraVAE(Net):
+    """
+    Transformer-based variational autoencoder to handle sequential data.
+    """
     def __init__(self, latent_dims: int, distance: int, name: str, *args, cluster: bool = False, **kwargs):
         super(TraVAE, self).__init__(name, cluster)
         self.n = kwargs['n']  # number of data qubits
@@ -168,7 +161,7 @@ class TraVAE(Net):
         # mask = mask.masked_fill(mask == 1, 0.0)
         # mask = mask.to(self.device)
 
-        memory = self.encoder(src)  #, mask=mask)  # TODO mask also here already? try first without ...
+        memory = self.encoder(src)  #, mask=mask)
         encoded = self.fc_enc(memory).squeeze(-1)
 
         # Use final output for mean and variance
@@ -234,14 +227,6 @@ class TraVAE(Net):
         mean, logvar = self.encode(src)
         return mean
 
-
-# Hyperparameters
-d_model = 512  # Transformer model dimensionality
-nhead = 8  # Number of attention heads
-num_layers = 6  # Number of Transformer layers (both encoder and decoder)
-latent_dim = 128  # Dimensionality of the latent space
-vocab_size = 10000  # Vocabulary size
-max_seq_len = 50  # Maximum sequence length
 
 
 

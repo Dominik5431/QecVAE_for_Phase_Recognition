@@ -6,6 +6,11 @@ from random import random
 
 
 class QECCode(ABC):
+    """
+        Abstract base class for error codes.
+        Defines the basis methods create_code_instance() and get_syndromes(n) with n: number of samples.
+        Implements circuit_to_png() to visualize the error correcting circuit.
+        """
     def __init__(self, distance, noise, random_flip: bool = False, noise_model: str = ''):
         self.distance = distance
         self.noise = noise
@@ -24,11 +29,21 @@ class QECCode(ABC):
         raise NotImplementedError("Subclasses should implement this!")
 
     @abstractmethod
-    def get_syndromes(self, n, flip: bool = False, supervised: bool = False, only_syndromes: bool = False):
+    def get_syndromes(self, n, flip: bool = False, only_syndromes: bool = False):
         raise NotImplementedError("Subclasses should implement this!")
 
 
 class BitFlipToricCode(QECCode):
+    """
+        Implementation of the Toric code in the code capacity setting for bit-flip errors.
+        create_code_instance() constructs a stim.Circuit of the Toric code
+        get_syndromes(n, flip=True, only_syndromes=True) generates data samples.
+            Args:
+                flip: If 'True', every second syndrome is flipped to assure a Z2 symmetry in the data.
+                      Default: 'True' since the performance is improved.
+                only_syndromes is not used and are only in place to match the signature of the method in
+                class SurfaceCode.
+    """
     def __init__(self, distance, noise, random_flip):
         super().__init__(distance, noise, random_flip)
         self.num_syndromes = 2 * distance ** 2 - 2
@@ -172,12 +187,11 @@ class BitFlipToricCode(QECCode):
                             stim.target_rec(-2 * self.distance ** 2 + 2 + i)])
         return circuit
 
-    def get_syndromes(self, n, flip: bool = False, supervised: bool = False, only_syndromes: bool = False):
+    def get_syndromes(self, n, flip: bool = False, only_syndromes: bool = False):
         sampler = self.circuit.compile_detector_sampler()
         syndromes = sampler.sample(shots=n)
-        # Add here already the last redundant syndrome to have square shape
-        z_add = 1
-        x_add = 1
+
+        # Add here already the last redundant syndrome to have square shaped data
         syndromes = np.array(list(map(lambda y: np.where(y, -1, 1), syndromes)))  # tried on 08.05.
         syndromes_temp = []
         syndromes_final = []
@@ -185,6 +199,7 @@ class BitFlipToricCode(QECCode):
         for s in syndromes:
             z_syndromes = s[:int(0.5 * len(s))]
             x_syndromes = s[int(0.5 * len(s)):]
+            z_add = 1
             for z in z_syndromes:
                 z_add *= z
             z_syndromes = np.append(z_syndromes, z_add)
@@ -194,8 +209,11 @@ class BitFlipToricCode(QECCode):
             x_syndromes = np.append(x_syndromes, x_add)
             syndrome_shot = np.append(z_syndromes, x_syndromes)
             syndromes_temp.append(syndrome_shot)
+
+        # Randomly flips every second syndrome.
+        # Flips records the flips to be able to evaluate a single branch during the latent space evaluation.
         if self.random_flip:
-            if not flip and not supervised:
+            if not flip:
                 for syndrome in syndromes_temp:
                     if random() < 0.5:
                         syndromes_final.append(syndrome)
@@ -206,14 +224,22 @@ class BitFlipToricCode(QECCode):
                 return syndromes_final, flips
             else:
                 syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_temp)))
-            # syndromes_final = list(map(lambda y: (y, 1) if random() < 0.5 else (-y, -1), syndromes_final))
-            # syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_final)))
         else:
             syndromes_final = syndromes_temp
         return syndromes_final
 
 
 class DepolarizingToricCode(QECCode):
+    """
+            Implementation of the Toric code in the code capacity setting for depolarizing noise.
+            create_code_instance() constructs a stim.Circuit of the Toric code
+            get_syndromes(n, flip=True, only_syndromes=True) generates data samples.
+                Args:
+                    flip: If 'True', every second syndrome is flipped to assure a Z2 symmetry in the data.
+                          Default: 'True' since the performance is improved.
+                    only_syndromes is not used and are only in place to match the signature of the method in
+                    class SurfaceCode.
+        """
     def __init__(self, distance, noise, random_flip):
         super().__init__(distance, noise, random_flip)
         self.num_syndromes = 2 * distance ** 2 - 2
@@ -438,7 +464,7 @@ class DepolarizingToricCode(QECCode):
                             stim.target_rec(-l + i)])
         return circuit
 
-    def get_syndromes(self, n, flip: bool = False, supervised: bool = False, only_syndromes: bool = False):
+    def get_syndromes(self, n, flip: bool = False, only_syndromes: bool = False):
         def add_last_stabilizer(syndromes):
             syndromes_added = []
             for s in syndromes:
@@ -458,7 +484,7 @@ class DepolarizingToricCode(QECCode):
 
         sampler = self.circuit.compile_detector_sampler()
         samples = sampler.sample(shots=n)
-        # Add here already the last redundant syndrom to have square shape
+
         samples = np.array(list(map(lambda y: np.where(y, -1, 1), samples)))  # tried on 08.05.
 
         syndromes_before_flip = add_last_stabilizer(samples[:, :2 * self.distance ** 2 - 2])
@@ -490,185 +516,8 @@ class DepolarizingToricCode(QECCode):
         return output
 
 
-class ToricCodePheno(QECCode):
-    def __init__(self, distance, noise, random_flip):
-        super().__init__(distance, noise, random_flip)
-
-    def create_code_instance(self):
-        circuit = stim.Circuit()
-        # initialize qubits in |0> state
-        # data qubits
-        for n in np.arange(2 * self.distance ** 2):
-            circuit.append("R", [n])
-        # stabilizer qubits
-        for i in np.arange(2 * self.distance ** 2 - 2):
-            circuit.append("R", [2 * self.distance ** 2 + i])
-        circuit.append("TICK")
-        # Encoding
-        # Measure all stabilizers to project into eigenstate of stabilizers, use stim's detector annotation
-        # Z stabilizers
-        for i in np.arange(self.distance):
-            for j in np.arange(self.distance):
-                # last stabilizer -> not applied due to constraint
-                if i * self.distance + j == self.distance ** 2 - 1:
-                    break
-                # horizontal CNOTs
-                circuit.append("CX", [i * self.distance + j, 2 * self.distance ** 2 + i * self.distance + j])
-                if j % self.distance == self.distance - 1:
-                    circuit.append("CX",
-                                   [(i - 1) * self.distance + j + 1, 2 * self.distance ** 2 + i * self.distance + j])
-                else:
-                    circuit.append("CX", [i * self.distance + j + 1, 2 * self.distance ** 2 + i * self.distance + j])
-                # vertical CNOTs
-                circuit.append("CX", [self.distance ** 2 + i * self.distance + j,
-                                      2 * self.distance ** 2 + i * self.distance + j])
-                if i % self.distance == 0:
-                    circuit.append("CX", [self.distance ** 2 + (i - 1) * self.distance + j + self.distance ** 2,
-                                          2 * self.distance ** 2 + i * self.distance + j])
-                else:
-                    circuit.append("CX", [self.distance ** 2 + (i - 1) * self.distance + j,
-                                          2 * self.distance ** 2 + i * self.distance + j])
-        # X stabilizers
-        # Hadamard gates
-        for i in np.arange(2 * self.distance ** 2 + self.distance ** 2 - 1,
-                           2 * self.distance ** 2 + 2 * self.distance ** 2 - 2):
-            circuit.append("H", [i])
-        for i in np.arange(self.distance):
-            for j in np.arange(self.distance):
-                # horizontal CNOTs
-                if i * self.distance + j == self.distance ** 2 - 1:
-                    break
-                # horizontal CNOTs
-                circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                      self.distance ** 2 + i * self.distance + j])
-                if j % self.distance == 0:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          self.distance ** 2 + (i + 1) * self.distance + j - 1])
-                else:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          self.distance ** 2 + i * self.distance + j - 1])
-                # vertical CNOTs
-                circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                      i * self.distance + j])
-                if i % self.distance == self.distance - 1:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          (i + 1) * self.distance + j - self.distance ** 2])
-                else:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          (i + 1) * self.distance + j])
-        # Hadamard gates
-        for i in np.arange(2 * self.distance ** 2 + self.distance ** 2 - 1,
-                           2 * self.distance ** 2 + 2 * self.distance ** 2 - 2):
-            circuit.append("H", [i])
-        # Measurement of syndrome qubits
-        for i in np.arange(2 * self.distance ** 2 - 2):
-            circuit.append("MR", [2 * self.distance ** 2 + i])
-        circuit.append("TICK")
-
-        # TODO hier repeat, structure REPEAT n { text }
-        print("REPEAT 5 {\n" + self.syndrome_measurement() + "\n}", sep='')
-        circuit.append_from_stim_program_text("REPEAT 5 {\nX 0 1\n}")
-        raise Exception
-        circuit.append_from_stim_program_text("REPEAT 5 {" + self.syndrome_measurement() + "}")
-
-        return circuit
-
-    def syndrome_measurement(self) -> str:
-        circuit = stim.Circuit()
-        # Noise
-        for i in np.arange(2 * self.distance ** 2):
-            circuit.append("X_ERROR", [i], self.noise)
-        circuit.append("TICK")
-        # Measure all stabilizers again:
-        # Z stabilizers
-        for i in np.arange(self.distance):
-            for j in np.arange(self.distance):
-                # last stabilizer -> not applied due to constraint
-                if i * self.distance + j == self.distance ** 2 - 1:
-                    break
-                # horizontal CNOTs
-                circuit.append("CX", [i * self.distance + j, 2 * self.distance ** 2 + i * self.distance + j])
-                if j % self.distance == self.distance - 1:
-                    circuit.append("CX",
-                                   [(i - 1) * self.distance + j + 1, 2 * self.distance ** 2 + i * self.distance + j])
-                else:
-                    circuit.append("CX", [i * self.distance + j + 1, 2 * self.distance ** 2 + i * self.distance + j])
-                # vertical CNOTs
-                circuit.append("CX", [self.distance ** 2 + i * self.distance + j,
-                                      2 * self.distance ** 2 + i * self.distance + j])
-                if i % self.distance == 0:
-                    circuit.append("CX", [self.distance ** 2 + (i - 1) * self.distance + j + self.distance ** 2,
-                                          2 * self.distance ** 2 + i * self.distance + j])
-                else:
-                    circuit.append("CX", [self.distance ** 2 + (i - 1) * self.distance + j,
-                                          2 * self.distance ** 2 + i * self.distance + j])
-        # X stabilizers
-        # Hadamard gates
-        for i in np.arange(2 * self.distance ** 2 + self.distance ** 2 - 1,
-                           2 * self.distance ** 2 + 2 * self.distance ** 2 - 2):
-            circuit.append("H", [i])
-        for i in np.arange(self.distance):
-            for j in np.arange(self.distance):
-                # horizontal CNOTs
-                if i * self.distance + j == self.distance ** 2 - 1:
-                    break
-                # horizontal CNOTs
-                circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                      self.distance ** 2 + i * self.distance + j])
-                if j % self.distance == 0:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          self.distance ** 2 + (i + 1) * self.distance + j - 1])
-                else:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          self.distance ** 2 + i * self.distance + j - 1])
-                # vertical CNOTs
-                circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                      i * self.distance + j])
-                if i % self.distance == self.distance - 1:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          (i + 1) * self.distance + j - self.distance ** 2])
-                else:
-                    circuit.append("CX", [2 * self.distance ** 2 + self.distance ** 2 - 1 + i * self.distance + j,
-                                          (i + 1) * self.distance + j])
-        # Hadamard gates
-        for i in np.arange(2 * self.distance ** 2 + self.distance ** 2 - 1,
-                           2 * self.distance ** 2 + 2 * self.distance ** 2 - 2):
-            circuit.append("H", [i])
-        # Measurement of syndrome qubits
-        for i in np.arange(2 * self.distance ** 2 - 2):
-            circuit.append("MR", [2 * self.distance ** 2 + i])
-        # Add detectors
-        for i in np.arange(2 * self.distance ** 2 - 2):
-            circuit.append("DETECTOR",
-                           [stim.target_rec(-2 * self.distance ** 2 + 2 - 2 * self.distance ** 2 + 2 + i),
-                            stim.target_rec(-2 * self.distance ** 2 + 2 + i)])
-        return circuit.__str__()
-
-    def get_syndromes(self, n):
-        sampler = self.circuit.compile_detector_sampler()
-        syndromes = sampler.sample(shots=n)
-        # Add here already the last redundant syndrom to have square shape
-        syndromes_final = []
-        for s in syndromes:
-            z_syndromes = s[:int(0.5 * len(s))]
-            x_syndromes = s[int(0.5 * len(s)):]
-            z_add = 1
-            for z in z_syndromes:
-                z_add *= z
-            z_syndromes = np.append(z_syndromes, z_add)
-            x_add = 1
-            for x in x_syndromes:
-                x_add *= x
-            x_syndromes = np.append(x_syndromes, x_add)
-            syndrome_shot = np.append(z_syndromes, x_syndromes)
-            syndromes_final.append(syndrome_shot)
-        if self.random_flip:
-            return list(map(lambda y: np.where(y, -1, 1) if random() < 0.5 else np.where(y, 1, -1), syndromes_final))
-        else:
-            return list(map(lambda y: np.where(y, -1, 1), syndromes_final))  # tried on 08.05.
-
-
 class SurfaceCode(QECCode):
+
     def __init__(self, distance, noise, noise_model):
         super().__init__(distance, noise)
 
@@ -869,7 +718,7 @@ class SurfaceCode(QECCode):
 
         return circuit
 
-    def get_syndromes(self, n, flip: bool = False, supervised: bool = False, only_syndromes: bool = False):
+    def get_syndromes(self, n, flip: bool = False, only_syndromes: bool = False):
         sampler = self.circuit.compile_detector_sampler()
         samples = sampler.sample(shots=n)
         samples = np.array(list(map(lambda y: np.where(y, 1, 0), samples)))

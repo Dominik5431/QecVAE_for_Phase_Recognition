@@ -7,9 +7,10 @@ from .qecdata import QECDataset
 from src.error_code import DepolarizingToricCode, SurfaceCode
 
 
-# TODO cross-check with code in bitflip.py upon changes I made when adapting the respective code
-
 class DepolarizingToricData(QECDataset):
+    """
+        Implements a custom Dataset for syndromes of the Toric code under depolarizing noise.
+    """
     def __init__(self, distance, noises, name, load, random_flip, device, sequential: bool = False,
                  cluster: bool = False, only_syndromes: bool = False):
         super().__init__(distance=distance, noises=noises, name=name, load=load, device=device, random_flip=random_flip,
@@ -28,9 +29,9 @@ class DepolarizingToricData(QECDataset):
         return output
 
     def generate_data(self, n):
-        syndromes = []
-        flips = []
-        logical = []
+        syndromes = []  # measurement syndromes
+        flips = []  # record if a syndrome has been flipped purposely
+        logical = []  # measured logicals
 
         # Generate data for each noise value
         for noise in tqdm(self.noises):
@@ -67,6 +68,9 @@ class DepolarizingToricData(QECDataset):
 
 
 class DepolarizingSurfaceData(QECDataset):
+    """
+        Implements a custom Dataset for syndromes of the Surface code under depolarizing noise.
+    """
     def __init__(self, distance: int, noises, name: str, load: bool, device: torch.device, cluster: bool = False,
                  only_syndromes: bool = False):
         super().__init__(distance, noises, name, load, device, cluster, only_syndromes)
@@ -78,7 +82,7 @@ class DepolarizingSurfaceData(QECDataset):
         return self.syndromes[idx]
 
     def generate_data(self, n, only_syndromes: bool = False):
-        syndromes = []
+        syndromes = []  # measurement syndromes
         for noise in self.noises:
             c = SurfaceCode(self.distance, noise, noise_model='depolarizing')
             syndromes_noise = c.get_syndromes(n, only_syndromes=only_syndromes)
@@ -87,5 +91,6 @@ class DepolarizingSurfaceData(QECDataset):
         return torch.as_tensor(np.array(syndromes), device=self.device)
 
     def get_train_val_data(self, ratio=0.8):
+        # Splits samples into train and validation data
         train_set, val_set = torch.utils.data.random_split(self, [ratio - 1 / len(self), 1 - ratio + 1 / len(self)])
         return train_set, val_set

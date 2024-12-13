@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/QECthreshold.iml" filepath="$PROJECT_DIR$/.idea/QECthreshold.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/QecVAE_for_Phase_Recognition.iml" filepath="$PROJECT_DIR$/.idea/QecVAE_for_Phase_Recognition.iml" />
     </modules>
   </component>
 </project>

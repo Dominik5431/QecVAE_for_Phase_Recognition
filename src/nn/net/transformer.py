@@ -6,6 +6,12 @@ import torch.nn.functional as F
 import time
 
 
+"""
+This file contains an implementation of the Transformer Encoder-Decoder structure from Vaswani et al.
+Identical to torch.nn.TransformerEncoder and torch.nn.TransformerDecoder.
+"""
+
+
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model, n_head, dropout=0.1, device=None):
         """

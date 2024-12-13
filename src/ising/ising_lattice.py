@@ -4,12 +4,16 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 
-# Autocorrelation time isn't implemented here anymore. For implementation go back to old script. Follow sweep estimations in Civitcioglu to ensure independence of spin samples.
+# Autocorrelation time isn't implemented here anymore. For implementation go back to old script.
+# Follow sweep estimations in Civitcioglu to ensure independence of spin samples.
 
 class IsingLattice:
+    """
+    Class to model an Ising lattice instance. Allows to sample configurations via the Metropolis algorithm.
+    First the lattice is thermalized. Then configurations are sampled. Per sweep, L**2 flip attempts are performed.
+    """
     def __init__(self, L, T_max, delta, n: int, initial='random'):
         """
-
         Parameters
         ----------
         L : int
@@ -22,13 +26,12 @@ class IsingLattice:
         Returns
         -------
         None.
-
         """
         self.L = L
         self.config = None
         self.T_max = T_max
         self.delta = delta
-        self.data = np.zeros((int(self.T_max/self.delta), n, L, L))
+        self.data = np.zeros((int(self.T_max / self.delta), n, L, L))
         self.data_collection(n)
 
     def initialize(self):
@@ -47,7 +50,7 @@ class IsingLattice:
         print('initialized')
         T = self.T_max
         counter = 0
-        while T > self.delta/2:
+        while T > self.delta / 2:
             for _ in np.arange(3000):
                 self.mc_sweep(T)
             for i in np.arange(n):

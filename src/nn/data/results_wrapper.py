@@ -2,7 +2,12 @@ import pickle
 from pathlib import Path
 
 
-class Predictions:
+class ResultsWrapper:
+    """
+    Wrapper class that manages the results of the latent space evaluation or the reconstruction error evaluation.
+    Stores the results in self.dict
+    Implements method to add data, get data, and save and load the results.
+    """
     def __init__(self, name: str, cluster: bool = False):
         self.dict = {}
         self.name = name
@@ -24,6 +29,7 @@ class Predictions:
 
     def load(self):
         try:
+            # Cluster requires main script at the root --> hence different folder architecture
             if not self.cluster:
                 with open(str(Path().resolve().parent) + "/data/" + self.name + ".pkl", 'rb+') as fp:
                     try:

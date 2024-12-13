@@ -1,79 +1,91 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import scipy
-from matplotlib import gridspec
 import numpy as np
+import warnings
 
-from src.nn import Predictions
+from src.nn import ResultsWrapper
 from src.nn.utils.functions import smooth
-import seaborn as sns
-from tqdm import tqdm
-import torch.nn.functional as F
 import torch
-from scipy.optimize import curve_fit
 from src.nn.utils.functions import simple_bootstrap
 
-from src.nn.utils.loss import loss_func
+"""
+This file contains various methods to plot the results and evaluating the obtained data during inference.
+"""
 
 
 def plot_latent_mean(latents: dict, random_flip: bool, structure: str):
+    """
+    Plots the mean of the latent distribution
+    :param latents: dictionary: key: distance, value: dictionary: key: noise, value: latent space mean
+    :param random_flip: bool, whether random_flip is activated or not
+    :param structure: structure of the VAE network
+    :return:
+    """
+    warnings.warn("Only implemented for bit-flip noise.")
+
+    # Plot latent space mean
     dists = list(latents.keys())
     for dist in dists:
         noises = list(latents[dist].keys())
-        noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
-        latent = list(latents[dist].values())
-        # print(latent[0][3].cpu().detach().numpy())
-        # if latent[0][3].cpu().detach().numpy().ndim == 0:
+        noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))  # convert noises to temperature scale
+        latent = list(latents[dist].values())  # latent mean values
+
         zs = np.array(list(map(lambda x: x[0].cpu().detach().numpy(), latent)))[:, :, 0]
-        # print(np.shape(zs))
         flips = np.array(list(map(lambda x: x[3].cpu().detach().numpy(), latent)))
-        # print(np.shape(flips))
+
         if not random_flip:
             means = list(map(lambda x: torch.mean(x[2]).cpu().detach().numpy(), latent))
         else:
             means = list(map(lambda x: torch.mean(torch.abs(x[0])).cpu().detach().numpy(), latent))
             means = smooth(means, 5)
             # noises = np.array(list(map(lambda x: 4 * (1 - x) ** 3 * x + 4 * (1 - x) * x ** 3, noises)))
-        #plt.ylim([-0.00001, 0.00001])
         plt.plot(noises, means, label=str(dist))
-    plt.xlabel('bitflip probability p')
+    plt.xlabel('associated temperature')
     plt.ylabel(r'mean $\langle | \mu | \rangle$')
-            # plt.xscale('log')
+    # plt.xscale('log')
     if random_flip:
         plt.title(structure + " + random flip")
     else:
         plt.title(structure)
     plt.legend()
     plt.show()
+
+    # plot latent space log variance
     for dist in dists:
         noises = list(latents[dist].keys())
         noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
         latent = list(latents[dist].values())
         sigmas = list(map(lambda x: torch.mean(x[1]).cpu().detach().numpy(), latent))
         plt.plot(noises, sigmas, label=str(dist))
-        # plt.vlines(0.95, -5, -1.5, colors='red', linestyles='dashed')
-                # if random_flip:
-                # plt.scatter(noise, latent[j][4].cpu()/torch.mean(torch.abs(latent[j][0]), dim=0).cpu(), s=5, color='green')
-            #plt.ylim([-0.00001, 0.00001])
     plt.xlabel('associated temperature')
     plt.ylabel(r'mean $\langle \log \sigma^2 \rangle$')
     plt.legend()
-            # plt.xscale('log')
     if random_flip:
         plt.title(structure + " + random flip")
     else:
         plt.title(structure)
     plt.show()
-        # elif latent[0][3].cpu().detach().numpy().ndim == 1:
 
 
+def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str, noise_model: str, show=True,
+                               surface: bool = False):
+    """
+    Plots the susceptibility of the latent space order parameter.
+    :param latents: dictionary: key: distance, value: dictionary: key: noise, value: latent space mean
+    :param random_flip: bool, whether random_flip is activated or not
+    :param structure: structure of the VAE network
+    :param noise_model: specifies the noise model, supported: 'BitFlip' or 'Depolarizing'
+    :param show: bool, show plot?
+    :param surface: bool, specifies whether sequential data is used
+    :return:
+    """
 
-def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str, noise_model: str, show = True, surface: bool = False):
     dists = list(latents.keys())
     coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(6, 6))
     # ax2 = ax1.twinx()
+
     if surface:
         structure = 'TraVAE'
         for k, dist in enumerate(dists):
@@ -93,7 +105,7 @@ def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str,
             ax1.plot(noises[1:], means[1:], color=coloring[k], linestyle='dashed')
             ax2.plot(noises[1:], var[1:], color=coloring[k], label=str(dist))
             # plt.vlines(0.189, 0, max(var), colors='red', linestyles='dashed')
-            plt.vlines(1.56, 0, max(var), colors='red', linestyles='dashed')
+            plt.vlines(1.56, 0, max(var), colors='red', linestyles='dashed')  # Vertical line at the threshold
     else:
         for k, dist in enumerate(dists):
             # if dist == 7 or dist == 9 or dist == 39:
@@ -105,20 +117,20 @@ def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str,
                 latent = list(latents[dist].values())
                 zs = np.array(list(map(lambda x: torch.sum(torch.abs(x[0]), dim=1).cpu().detach().numpy(), latent)))
 
-            except KeyError:
+            except KeyError:  # some latent dicts might be saved in another way: This except block handles those.
                 noises = list(latents[dist][dist].keys())
                 latent = list(latents[dist][dist].values())
                 zs = np.array(list(map(lambda x: torch.sum(torch.abs(x[0]), dim=1).cpu().detach().numpy(), latent)))
 
-            flips = np.array(list(map(lambda x: x[3].cpu().detach().numpy(), latent)))
+            flips = np.array(list(map(lambda x: x[3].cpu().detach().numpy(), latent)))  # gets the information whether a sample has been flipped
 
+            # convert noise strength to temperature scale
             if noise_model == 'BitFlip':
                 noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
             else:
                 noises = np.array(list(map(lambda x: 4 / (np.log(3 * (1 - x) / x)), noises)))
 
-
-            der = np.zeros(len(noises))
+            der = np.zeros(len(noises))  # susceptibility
             means = np.zeros(len(noises))
             unc = []
             for i in range(1, len(noises)):
@@ -131,14 +143,13 @@ def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str,
             unc = list(map(list, zip(*unc)))
             print(unc)
 
-            ax1.errorbar(noises[1:], means[1:], yerr=unc, color=coloring[k], marker='o', markersize=1, linestyle='solid', label='d={}'.format(dist))
-            # print(unc[1:])
-            # unc2 = np.zeros(len(noises))
-            #for i in range(len(noises)):
-            #    unc2[i] = simple_bootstrap(latent[i][0], lambda x: torch.mean(x ** 2).cpu().detach().numpy() - torch.mean(
-            #        torch.abs(x)).cpu().detach().numpy() ** 2)
+            ax1.errorbar(noises[1:], means[1:], yerr=unc, color=coloring[k], marker='o', markersize=1,
+                         linestyle='solid', label='d={}'.format(dist))
 
-            ax2.plot(noises[1:], der[1:], color=coloring[k], marker='o', markersize=1, linestyle='solid', label='d={}'.format(dist))
+            ax2.plot(noises[1:], der[1:], color=coloring[k], marker='o', markersize=1, linestyle='solid',
+                     label='d={}'.format(dist))
+
+            # plot threshold lines
             if noise_model == 'BitFlip':
                 ax1.vlines(0.951, 0, 1.1 * max(means), colors='red', linestyles='dashed')
                 ax2.vlines(0.951, 0, 1.1 * max(der), colors='red', linestyles='dashed')
@@ -148,7 +159,7 @@ def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str,
                 ax2.vlines(1.565, 0, 1.1 * max(der), colors='red', linestyles='dashed')
                 ax1.vlines(1.373, 0, 1.1 * max(means), colors='grey', linestyles='dashed')
 
-    # one more time for label
+    # one more time for label --> label only during last plotting
     if noise_model == 'BitFlip':
         ax1.vlines(0.951, 0, 1.1 * max(means), colors='red', linestyles='dashed', label='threshold')
         ax2.vlines(0.951, 0, 1.1 * max(der), colors='red', linestyles='dashed', label='threshold')
@@ -156,7 +167,8 @@ def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str,
         ax1.vlines(1.565, 0, 1.1 * max(means), colors='red', linestyles='dashed', label='threshold')
         ax2.vlines(1.373, 0, 1.1 * max(der), colors='grey', linestyles='dashed')
         ax2.vlines(1.565, 0, 1.1 * max(der), colors='red', linestyles='dashed')
-        ax1.vlines(1.373, 0, 1.1 * max(means), colors='grey', linestyles='dashed', label=r'$\frac{3}{2} \cdot$ bit-flip threshold')
+        ax1.vlines(1.373, 0, 1.1 * max(means), colors='grey', linestyles='dashed',
+                   label=r'$\frac{3}{2} \cdot$ bit-flip threshold')
     # ax1.tick_params(axis='y', labelcolor='black')
     # ax1.set_xlabel('associated temperature')
     ax2.set_xlabel(r'associated temperature $T_\mathrm{NL}$')
@@ -171,6 +183,11 @@ def plot_latent_susceptibility(latents: dict, random_flip: bool, structure: str,
 
 
 def plot_correlation():
+    """
+    Test function: plots correlation between latent space order parameter and susceptibility and the respective
+    quantities of the raw data.
+    :return:
+    """
     coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(6, 6))
     noise_model = 'BitFlip'
@@ -180,7 +197,7 @@ def plot_correlation():
 
     # name_dict_latent = "latents_BitFlip_standard_rf_21ff1_1"
 
-    latents = Predictions(name=name_dict_latent).load().get_dict()
+    latents = ResultsWrapper(name=name_dict_latent).load().get_dict()
     noises = list(latents[dist].keys())
     latent = list(latents[dist].values())
     zs = np.array(list(map(lambda x: torch.sum(torch.abs(x[0]), dim=1).cpu().detach().numpy(), latent)))
@@ -203,18 +220,13 @@ def plot_correlation():
             scaling = means[i]
         means[i] /= scaling
         unc.append((error_bars[1], error_bars[2]))
-        der[i] = np.mean((vals/scaling) ** 2) - np.mean(vals/scaling) ** 2
+        der[i] = np.mean((vals / scaling) ** 2) - np.mean(vals / scaling) ** 2
     der = smooth(der, 7)
     unc = list(map(list, zip(*unc)))
     print(unc)
 
     ax1.errorbar(noises[1:], means[1:], yerr=unc, color=coloring[3], marker='o', markersize=1, linestyle='solid',
                  label='d={}'.format(dist))
-    # print(unc[1:])
-    # unc2 = np.zeros(len(noises))
-    # for i in range(len(noises)):
-    #    unc2[i] = simple_bootstrap(latent[i][0], lambda x: torch.mean(x ** 2).cpu().detach().numpy() - torch.mean(
-    #        torch.abs(x)).cpu().detach().numpy() ** 2)
 
     ax2.plot(noises[1:], der[1:], color=coloring[3], marker='o', markersize=1, linestyle='solid',
              label='d={}'.format(dist))
@@ -227,7 +239,8 @@ def plot_correlation():
 
     ax1.plot(2 / np.log((1 - noises) / noises), mean, color='blue', marker='o', markersize=1,
              linestyle='solid', label=r'$\langle M \rangle$')
-    ax1.plot(2 / np.log((1 - noises) / noises), 1 - 2 * 4 * ((1 - noises) * noises ** 3 + (1 - noises) ** 3 * noises), color='black',
+    ax1.plot(2 / np.log((1 - noises) / noises), 1 - 2 * 4 * ((1 - noises) * noises ** 3 + (1 - noises) ** 3 * noises),
+             color='black',
              label='theory')
 
     ax2.plot(2 / np.log((1 - noises) / noises), smooth(sus, 5), color='blue', marker='o', markersize=1,
@@ -248,11 +261,21 @@ def plot_correlation():
 
 
 if __name__ == '__main__':
+    # Calls correlation plot
     plot_correlation()
 
 
-
-def plot_binder_cumulant(latents: dict, random_flip: bool, structure: str, noise_model: str, show = True):
+def plot_binder_cumulant(latents: dict, random_flip: bool, structure: str, noise_model: str, show=True):
+    """
+    For the random-bond Ising model, the Binder cumulant is often used to determine the phase transition. This method
+    plots the binder-cumulant of the latent space order parameter
+    :param latents: dictionary: key: distance, value: dictionary: key: noise, value: latent space mean
+    :param random_flip: bool, whether random_flip is activated or not
+    :param structure: structure of the VAE network
+    :param noise_model: str, specifies which noise model is used, supported: 'BitFlip' or 'Depolarizing'
+    :param show: bool, whether to show the resulting plot
+    :return:
+    """
     dists = list(latents.keys())
     coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
     fig, ax1 = plt.subplots()
@@ -284,7 +307,7 @@ def plot_binder_cumulant(latents: dict, random_flip: bool, structure: str, noise
         means /= means[1]
         for i in range(1, len(noises)):
             vals = zs[i][np.where(flips[i] == -1)]
-            der[i] = 1 - 3 * np.mean((vals/means[1]) ** 4) / (np.mean((vals/means[1]) ** 2) ** 2)
+            der[i] = 1 - 3 * np.mean((vals / means[1]) ** 4) / (np.mean((vals / means[1]) ** 2) ** 2)
         der = smooth(der, 7)
 
         ax1.errorbar(noises[1:], means[1:], yerr=unc[1:], color=coloring[k], linestyle='dashed')
@@ -316,6 +339,14 @@ def plot_binder_cumulant(latents: dict, random_flip: bool, structure: str, noise
 
 
 def scatter_latent_var(latents: dict, random_flip: bool, structure: str):
+    """
+    Scatters data points in the latent space
+    :param latents: dictionary: key: distance, value: dictionary: key: noise, value: latent space mean
+    :param random_flip: bool, whether random_flip is activated or not
+    :param structure: structure of the VAE network
+    :return:
+    """
+    warnings.warn("Only supported for 1d latent space.")
     dists = list(latents.keys())
     for dist in dists:
         noises = list(latents[dist].keys())
@@ -339,6 +370,13 @@ def scatter_latent_var(latents: dict, random_flip: bool, structure: str):
 
 
 def plot_reconstruction_error(reconstructions: dict, random_flip: bool, structure: str):
+    """
+    Plots the reconstruction error vs. the noise strength
+    :param reconstructions: dictionary: key: distance, value: dictionary: key: noise, value: latent space mean
+    :param random_flip: bool, whether random_flip is activated or not
+    :param structure: structure of the VAE network
+    :return:
+    """
     dists = list(reconstructions.keys())
     coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
     fig, ax1 = plt.subplots()
@@ -363,12 +401,19 @@ def plot_reconstruction_error(reconstructions: dict, random_flip: bool, structur
     ax2.tick_params(axis='y', labelcolor='blue')
     plt.legend()
     plt.title("Structure: " + structure)
-        # plt.xscale('log')
+    # plt.xscale('log')
     plt.tight_layout()
     plt.show()
 
 
 def plot_reconstruction_derivative(reconstructions: dict, random_flip: bool, structure: str):
+    """
+    Plots the derivative of the reconstruction error vs. the noise strength
+    :param reconstructions: dictionary: key: distance, value: dictionary: key: noise, value: latent space mean
+    :param random_flip: bool, whether random_flip is activated or not
+    :param structure: structure of the VAE network
+    :return:
+    """
     dists = list(reconstructions.keys())
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
@@ -414,7 +459,7 @@ def plot_reconstruction_derivative(reconstructions: dict, random_flip: bool, str
     ax2.tick_params(axis='y', labelcolor='blue')
     ax2.set_ylabel('reconstruction derivative', color='blue')
     plt.legend()
-        # plt.xscale('log')
+    # plt.xscale('log')
     # plt.xlim(0, 2)
     plt.title("Structure: " + structure)
     plt.tight_layout()
@@ -422,6 +467,14 @@ def plot_reconstruction_derivative(reconstructions: dict, random_flip: bool, str
 
 
 def plot_reconstruction(data, noise, distance, model):
+    """
+    Plots a reconstruction for some given sample.
+    :param data: Data sample
+    :param noise: Noise strength
+    :param distance: distance of the code
+    :param model: VAE model
+    :return:
+    """
     model.load()
     model.eval()
     sample = data[0]
@@ -504,7 +557,14 @@ def plot_reconstruction(data, noise, distance, model):
     print(torch.mean(recon_syn))
 
 
-def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if other function works
+def plot_mean_variance_samples(raw, distance, noise_model):
+    """
+    Plots the mean and variance of raw data samples
+    :param raw: raw data samples
+    :param distance: distance of the code
+    :param noise_model: noise model under which the data samples were obtained
+    :return:
+    """
     results = raw.get(distance)
     noises = list(results.keys())
     # noises = np.array(list(map(lambda x: 4 * (1 - x) ** 3 * x + 4 * (1 - x) * x ** 3, noises)))
@@ -528,7 +588,7 @@ def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if ot
     if noise_model == 'BitFlip':
         means = np.array(list(map(lambda x: torch.mean(torch.abs(results[x][0])).cpu().detach().numpy(), noises)))
         vars = np.array(list(map(lambda x: (torch.mean(results[x][0] ** 2).cpu().detach().numpy() - torch.mean(
-                            torch.abs(results[x][0])).cpu().detach().numpy() ** 2), noises)))
+            torch.abs(results[x][0])).cpu().detach().numpy() ** 2), noises)))
         print(results[noises[0]][0].cpu().detach().numpy())
         print(np.var(results[noises[0]][0].cpu().detach().numpy(), ddof=1))
         raise Exception
@@ -544,13 +604,16 @@ def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if ot
 
         ax1.plot(Ts, 1 - 2 * p_nts, label=r'$1-2p_{NTS}$')
         # plt.plot(Ts, max(vars) / max(np.gradient(p_nts, Ts)) * np.gradient(p_nts, Ts), label='derivative')
-        ax1.plot(Ts, (1 - (1 - 2 * p_nts)**2), label='theoretical variance')
+        ax1.plot(Ts, (1 - (1 - 2 * p_nts) ** 2), label='theoretical variance')
 
         def p(noise):
             return 4 * ((1 - noise) * noise ** 3 + (1 - noise) ** 3 * noise)
 
         def pnn(noise):
-            return 6 * noise * (1 - noise) ** 6 + 20 * noise ** 3 * (1 - noise) ** 4 + 6 * noise ** 5 * (1 - noise) ** 2 + 6 * noise ** 2 * (1 - noise) ** 5 + 20 * noise ** 4 * (1 - noise) ** 3 + 6 * noise ** 6 * (1 - noise)
+            return 6 * noise * (1 - noise) ** 6 + 20 * noise ** 3 * (1 - noise) ** 4 + 6 * noise ** 5 * (
+                        1 - noise) ** 2 + 6 * noise ** 2 * (1 - noise) ** 5 + 20 * noise ** 4 * (
+                        1 - noise) ** 3 + 6 * noise ** 6 * (1 - noise)
+
         def po(noise):
             return 8 * noise * (1 - noise) ** 7 + 56 * noise ** 3 * (1 - noise) ** 5 + 56 * noise ** 5 * (
                     1 - noise) ** 3 + 8 * noise ** 7 * (1 - noise)
@@ -559,7 +622,7 @@ def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if ot
             # return 1 / distance ** 2 * (1 + 4 * (1 - 2 * p_nn(noise)) + (distance ** 2 - 5) * (1 - 2 * p_o(noise))) - (
             #            1 - 2 * p_nts(noise)) ** 2
             return 1 / distance ** 2 * (
-                        1 + 4 * (1 - 2 * pnn(noise)) + (distance ** 2 - 5) * (1 - 2 * p(noise)) ** 2) - (
+                    1 + 4 * (1 - 2 * pnn(noise)) + (distance ** 2 - 5) * (1 - 2 * p(noise)) ** 2) - (
                     1 - 2 * p(noise)) ** 2
 
         ax2.plot(Ts, var(noises), label='total variance')
@@ -573,10 +636,6 @@ def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if ot
         ax1.plot(noises, means, c='black')
         ax2.plot(noises, vars, c='blue')
 
-            #ax2.scatter(2 / (np.log((1 - noise) / noise)),
-            #            (torch.mean(results[noise][0][0] * results[noise][0][1])
-            #             - torch.mean(results[noise][0][0]) * torch.mean(results[noise][0][1])).cpu().detach().numpy(),
-            #            c='red', s=3)
         plt.vlines(1.373, 0, max(vars), colors='red', linestyles='dashed')
         plt.vlines(1.225, 0, max(vars), colors='red', linestyles='dashed')
     ax1.tick_params(axis='y', labelcolor='black')
@@ -590,38 +649,15 @@ def plot_mean_variance_samples(raw, distance, noise_model):  # TODO delete if ot
     plt.show()
 
 
-def plot_predictions(predictions: dict):
-    dists = list(predictions.keys())
-    fig, ax1 = plt.subplots()
-    # ax2 = ax1.twinx()
-    coloring = ['black', 'blue', 'red', 'green', 'orange', 'pink', 'olive']
-    for k, dist in enumerate(dists):
-        noises = list(predictions[dist].keys())
-        # noises = np.array(list(map(lambda x: 4 * (1 - x) ** 3 * x + 4 * (1 - x) * x ** 3, noises)))
-        noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
-        pred = list(predictions[dist].values())
-        pred1 = np.array(list(map(lambda x: np.array(torch.mean(x, dim=0)[0].cpu()), pred)))
-        pred2 = np.array(list(map(lambda x: np.array(torch.mean(x, dim=0)[1].cpu()), pred)))
-        # pred = smooth(pred, 9)
-        ax1.plot(noises, pred1, color=coloring[k], label=str(dist))
-        ax1.plot(noises, pred2, color=coloring[k])
-    temperatures = np.arange(0.6, 1.4, 0.01)
-    noises = np.array(list(map(lambda x: np.exp(-2 / x) / (1 + np.exp(-2 / x)), temperatures)))
-    p_nts = 4 * (noises * (1-noises)**3 + noises**3 * (1-noises))
-    exp = 1 - 2 * p_nts
-    plt.plot(temperatures, 2 * p_nts)
-    # plt.vlines(0.95, 0, 1, colors='red', linestyles='dashed')
-    # plt.vlines(0.109, 0, 1, colors='red', linestyles='dashed')
-    plt.vlines(0.951, 0, 1, colors='red', linestyles='dashed')
-    plt.legend()
-    # plt.xlim(0.05, 0.14)
-    plt.xlim(0.6, 1.4)
-    plt.xlabel('associated temperature')
-    plt.ylabel('output')
-    plt.show()
-
-
 def plot_loss(history, distance, val=True, save=False):
+    """
+    Plots training history and validation loss.
+    :param history:
+    :param distance:
+    :param val:
+    :param save:
+    :return:
+    """
     epochs = len(history.history['accuracy'])
     # summarize history for loss
     plt.plot(np.arange(epochs), history.history['loss'])
@@ -638,7 +674,7 @@ def plot_loss(history, distance, val=True, save=False):
 
 def plot_collapsed(dictionary, noises, pc, nu):
     """
-
+    Plot data collapse.
     :param nu:
     :param pc:
     :param noises:

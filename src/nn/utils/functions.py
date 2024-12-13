@@ -2,12 +2,17 @@ import numpy as np
 from scipy.optimize import minimize, brentq
 from scipy.interpolate import UnivariateSpline
 
+"""
+This file contains several functions used for data analysis.
+"""
+
 
 def gaussian(x, A, mu, sigma):
     return A * np.exp(-(x - mu) ** 2 / sigma ** 2)
 
 
 def sigmoid_der(x, A, mu, sigma):
+    # Sigmoid derivative
     return sigmoid(x, A, mu, sigma) * (1 - sigmoid(x, A, mu, sigma))
 
 
@@ -20,8 +25,13 @@ def linear(x, m, n):
 
 
 def smooth(arr, m):
+    """
+    Smoothes an array
+    :param arr: Array to smoooth.
+    :param m: Smoothing parameter.
+    :return: Smoothed array.
+    """
     res = arr.copy()
-    # TODO test this function
     for i in np.arange(int((m - 1) / 2), len(arr) - int((m - 1) / 2)):
         res[i] = 1 / m * np.sum(arr[i - int((m - 1) / 2): i + int((m - 1) / 2) + 1])
     return res
@@ -29,7 +39,7 @@ def smooth(arr, m):
 
 def data_collapse(noises, dictionary):
     """
-
+    Performs data collapse.
     :param noises: noise values
     :param dictionary: dictionary: keys: distances, labels: probabilties for ordered/unordered as 2-tuple
     :return:
@@ -72,7 +82,7 @@ def data_collapse(noises, dictionary):
         result *= 1 / (2 * (len(distances) - 2) * len(noises))
         return result
 
-    '''def objective(x):
+    def objective(x):
         pc = x[0]
         c = x[1]
         d = x[2]
@@ -82,7 +92,6 @@ def data_collapse(noises, dictionary):
             for l in np.arange(k, len(distances)):
                 for h in np.arange(len(noises)):
                     result += dist ** (-d) * predictions
-    '''
 
     x0 = np.array([0.1089, 1.])
     res = minimize(objective_zabalo, x0, method='nelder-mead', options={'xatol': 1e-8, 'disp': True})
@@ -93,8 +102,8 @@ def data_collapse(noises, dictionary):
 
 def find_crossing(noises, predictions):
     """
-
-    :param noises:
+    Find the crossing by doing spline interpolation of two given arrays.
+    :param noises: Noise strengths.
     :param predictions: shape (len(noises)x2): predictions for class 0 and 1
     :return:
     """

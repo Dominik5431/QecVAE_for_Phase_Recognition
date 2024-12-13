@@ -5,6 +5,11 @@ from .transformer import EncoderLayer, PositionalEncoding
 import time
 
 
+"""
+This file contains several encoder structures.
+"""
+
+
 def d_conv_1(dis):
     match dis:
         case 7:
@@ -60,6 +65,10 @@ def d_ff(dis):
 
 
 class VariationalEncoder(nn.Module):
+    """
+    Encoder network based on two times two convolutions, avg pooling, batch norms and two linear layers.
+    Implements the reparameterization trick.
+    """
     def __init__(self, latent_dims, distance, channels, device: torch.device = torch.device('cpu')):
         super(VariationalEncoder, self).__init__()
         # define structure
@@ -98,11 +107,6 @@ class VariationalEncoder(nn.Module):
 
     def forward(self, x):
         # calculate forward pass
-        # l = x[1]
-        # s = x[0]
-
-        # l = F.relu(self.linearl_1(l))
-        # l = F.relu(self.linearl_2(l))
 
         x = F.relu(self.conv1_1(x))
         x = F.relu(self.bn1(self.conv1_2(x)))
@@ -117,23 +121,18 @@ class VariationalEncoder(nn.Module):
         # x = self.avg_pool3(x)
         x = self.flatten(x)
         x = F.relu(self.bn4(self.dropout(self.linear(x))))
-        # z_mean = self.fc_mean(torch.cat((x, l), dim=1))  # no tanh activation to not falsify the order parameter in latent space
+
         z_mean = self.fc_mean(x)
-        # z_log_var = self.fc_log_var(torch.cat((x, l), dim=1))
+
         z_log_var = self.fc_log_var(x)
         z = z_mean + torch.exp(0.5 * z_log_var) * self.N.sample(z_mean.shape).to(self.device)
         return z_mean, z_log_var, z, None, None, input_size1, input_size2
 
 
-class VariationalEncoderPheno(nn.Module):
-    def __init__(self, latent_dims, distance):
-        super(VariationalEncoderPheno, self).__init__()
-
-    def forward(self, x):
-        pass
-
-
 class VariationalEncoderSimple(nn.Module):
+    """
+    Variational Encoder with only one convolution and therefore less complexity.
+    """
     def __init__(self, latent_dims: int, distance: int, channels: int, device: torch.device = torch.device('cpu')):
         super(VariationalEncoderSimple, self).__init__()
         self.conv = nn.Conv2d(channels, 10, kernel_size=2, stride=1, padding=1, padding_mode='circular',
@@ -172,6 +171,9 @@ class VariationalEncoderSimple(nn.Module):
 
 
 class VariationalEncoderDeep(nn.Module):
+    """
+    Variational Encoder that only contains linear layers and no convolutions.
+    """
     def __init__(self, latent_dims: int, distance: int):
         super(VariationalEncoderDeep, self).__init__()
         self.flatten = nn.Flatten()
@@ -202,6 +204,10 @@ class VariationalEncoderDeep(nn.Module):
 
 
 class VariationalEncoderIsing(nn.Module):
+    """
+    Encoder that only contains convolutions and no pooling.
+    Attention: Does not work with any distance due to stride=2.
+    """
     def __init__(self, latent_dims, distance, channels):
         super(VariationalEncoderIsing, self).__init__()
         self.conv1 = nn.Conv2d(channels, 32, kernel_size=3, stride=2, padding=1, padding_mode='circular')
