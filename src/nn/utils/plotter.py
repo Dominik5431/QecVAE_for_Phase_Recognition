@@ -591,12 +591,11 @@ def plot_mean_variance_samples(raw, distance, noise_model):
             torch.abs(results[x][0])).cpu().detach().numpy() ** 2), noises)))
         print(results[noises[0]][0].cpu().detach().numpy())
         print(np.var(results[noises[0]][0].cpu().detach().numpy(), ddof=1))
-        raise Exception
         vars2 = np.array(list(map(lambda x: np.var(results[x][0].cpu().detach().numpy(), ddof=1), noises)))
         noises = np.array(list(map(lambda x: 2 / (np.log((1 - x) / x)), noises)))
         # vars = smooth(vars, 11)
         ax1.plot(noises, means, c='black', label='mean of syndrome')
-        ax2.plot(noises, vars, c='blue', label='variance of syndrome')
+        ax2.plot(noises, vars, c='blue', label='susceptibility')
         ax2.plot(noises, vars2, c='red', label='variance of syndrome2')
         Ts = np.arange(0, 3, 0.01)
         noises = np.array(list(map(lambda x: np.exp(-2 / x) / (1 + np.exp(-2 / x)), Ts)))
@@ -604,7 +603,7 @@ def plot_mean_variance_samples(raw, distance, noise_model):
 
         ax1.plot(Ts, 1 - 2 * p_nts, label=r'$1-2p_{NTS}$')
         # plt.plot(Ts, max(vars) / max(np.gradient(p_nts, Ts)) * np.gradient(p_nts, Ts), label='derivative')
-        ax1.plot(Ts, (1 - (1 - 2 * p_nts) ** 2), label='theoretical variance')
+        # ax1.plot(Ts, (1 - (1 - 2 * p_nts) ** 2), label='theoretical variance')
 
         def p(noise):
             return 4 * ((1 - noise) * noise ** 3 + (1 - noise) ** 3 * noise)
@@ -643,6 +642,7 @@ def plot_mean_variance_samples(raw, distance, noise_model):
     ax1.set_ylabel(r'mean $\langle | \mu | \rangle$')
     ax2.tick_params(axis='y', labelcolor='blue')
     ax2.set_ylabel('susceptibility')
+    plt.legend()
     # ax1.set_xlim(0, 2)
     plt.tight_layout()
     # fig.legend(loc = (0.53, 0.77))

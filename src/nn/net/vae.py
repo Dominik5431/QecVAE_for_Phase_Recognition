@@ -27,6 +27,16 @@ class VariationalAutoencoder(Net):
 
         self.structure = structure
         # Specify structure of the VAE
+        if structure == 'upsampling':
+            self.encoder = VariationalEncoder(latent_dims, distance, channels, device=device)
+            self.decoder = Decoder(latent_dims, distance, channels, device=device)
+        elif structure == 'conv-only':
+            self.encoder = VariationalEncoderIsing(latent_dims, distance, channels)
+            self.decoder = DecoderIsing(latent_dims, distance, channels)
+        elif structure == 'skip':
+            self.encoder = VariationalEncoderSkip(latent_dims, distance, channels, device=device)
+            self.decoder = DecoderSkip(latent_dims, distance, channels, device=device)
+        '''
         if structure == 'standard':
             self.encoder = VariationalEncoder(latent_dims, distance, channels, device=device)
             self.decoder = Decoder(latent_dims, distance, channels, device=device)
@@ -50,17 +60,11 @@ class VariationalAutoencoder(Net):
             self.decoder = TransformerDecoder(latent_dims, distance, channels)
         else:
             raise Exception('Invalid structure specified.')
+        '''
 
     def forward(self, x):
-        if self.structure == 'transformer' or self.structure == 'ising':
-            z_mean, z_log_var, z = self.encoder(x)
-            x = self.decoder(z)
-        else:
-            z_mean, z_log_var, z, indices1, indices2, input_size1, input_size2, *args = self.encoder(x)
-            x = self.decoder(z, indices1, indices2, input_size1, input_size2, *args)
-        # TODO write differently using *args
-        # TODO add values that should be used for skip connections a return values of the encoder to give them to
-        # the decoder as additional parameters
+        z_mean, z_log_var, z, skip = self.encoder(x)
+        x = self.decoder(z, skip)
         return x, z_mean, z_log_var
 
 

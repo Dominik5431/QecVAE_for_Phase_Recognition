@@ -187,45 +187,37 @@ class BitFlipToricCode(QECCode):
                             stim.target_rec(-2 * self.distance ** 2 + 2 + i)])
         return circuit
 
+    import numpy as np
+
     def get_syndromes(self, n, flip: bool = False, only_syndromes: bool = False):
         sampler = self.circuit.compile_detector_sampler()
-        syndromes = sampler.sample(shots=n)
+        syndromes = sampler.sample(shots=n)[:, :2 * (self.distance ** 2 - 1)]
 
-        # Add here already the last redundant syndrome to have square shaped data
-        syndromes = np.array(list(map(lambda y: np.where(y, -1, 1), syndromes)))  # tried on 08.05.
-        syndromes_temp = []
-        syndromes_final = []
-        flips = []
-        for s in syndromes:
-            z_syndromes = s[:int(0.5 * len(s))]
-            x_syndromes = s[int(0.5 * len(s)):]
-            z_add = 1
-            for z in z_syndromes:
-                z_add *= z
-            z_syndromes = np.append(z_syndromes, z_add)
-            x_add = 1
-            for x in x_syndromes:
-                x_add *= x
-            x_syndromes = np.append(x_syndromes, x_add)
-            syndrome_shot = np.append(z_syndromes, x_syndromes)
-            syndromes_temp.append(syndrome_shot)
+        # Convert to NumPy array and replace values: True → -1, False → 1
+        syndromes = np.where(syndromes, -1, 1)
 
-        # Randomly flips every second syndrome.
-        # Flips records the flips to be able to evaluate a single branch during the latent space evaluation.
+        # Split into Z and X syndromes
+        mid = syndromes.shape[1] // 2
+        z_syndromes, x_syndromes = syndromes[:, :mid], syndromes[:, mid:]
+
+        # Compute product along axis 1 and append
+        z_syndromes = np.hstack([z_syndromes, np.prod(z_syndromes, axis=1, keepdims=True)])
+        x_syndromes = np.hstack([x_syndromes, np.prod(x_syndromes, axis=1, keepdims=True)])
+
+        # Combine back into full syndrome shots
+        syndromes_temp = np.hstack([z_syndromes, x_syndromes])
+
+        # Handle flipping logic
         if self.random_flip:
             if not flip:
-                for syndrome in syndromes_temp:
-                    if random() < 0.5:
-                        syndromes_final.append(syndrome)
-                        flips.append(1)
-                    else:
-                        syndromes_final.append(-syndrome)
-                        flips.append(-1)
-                return syndromes_final, flips
+                flips = np.where(np.random.rand(n) < 0.5, 1, -1)
+                syndromes_final = syndromes_temp * flips[:, np.newaxis]
+                return syndromes_final, flips.tolist()
             else:
-                syndromes_final = np.array(list(map(lambda y: y if random() < 0.5 else -y, syndromes_temp)))
+                syndromes_final = np.where(np.random.rand(n, 1) < 0.5, syndromes_temp, -syndromes_temp)
         else:
             syndromes_final = syndromes_temp
+
         return syndromes_final
 
 
@@ -465,55 +457,35 @@ class DepolarizingToricCode(QECCode):
         return circuit
 
     def get_syndromes(self, n, flip: bool = False, only_syndromes: bool = False):
-        def add_last_stabilizer(syndromes):
-            syndromes_added = []
-            for s in syndromes:
-                z_syndromes = s[:int(0.5 * len(s))]
-                x_syndromes = s[int(0.5 * len(s)):]
-                z_add = 1
-                for z in z_syndromes:
-                    z_add *= z
-                z_syndromes = np.append(z_syndromes, z_add)
-                x_add = 1
-                for x in x_syndromes:
-                    x_add *= x
-                x_syndromes = np.append(x_syndromes, x_add)
-                syndrome_shot = np.append(z_syndromes, x_syndromes)
-                syndromes_added.append(syndrome_shot)
-            return syndromes_added
-
         sampler = self.circuit.compile_detector_sampler()
-        samples = sampler.sample(shots=n)
+        syndromes = sampler.sample(shots=n)[:, :2 * (self.distance ** 2 - 1)]
 
-        samples = np.array(list(map(lambda y: np.where(y, -1, 1), samples)))  # tried on 08.05.
+        # Convert to NumPy array and replace values: True → -1, False → 1
+        syndromes = np.where(syndromes, -1, 1)
 
-        syndromes_before_flip = add_last_stabilizer(samples[:, :2 * self.distance ** 2 - 2])
+        # Split into Z and X syndromes
+        mid = syndromes.shape[1] // 2
+        z_syndromes, x_syndromes = syndromes[:, :mid], syndromes[:, mid:]
 
-        syndromes_final = []
-        flips = []
-        logical = samples[:, 2 * self.distance ** 2 - 2:]
-        logical_final = []
+        # Compute product along axis 1 and append
+        z_syndromes = np.hstack([z_syndromes, np.prod(z_syndromes, axis=1, keepdims=True)])
+        x_syndromes = np.hstack([x_syndromes, np.prod(x_syndromes, axis=1, keepdims=True)])
 
-        output = ()
+        # Combine back into full syndrome shots
+        syndromes_temp = np.hstack([z_syndromes, x_syndromes])
 
+        # Handle flipping logic
         if self.random_flip:
-            for i, syndrome in enumerate(syndromes_before_flip):
-                if random() < 0.5:
-                    syndromes_final.append(syndrome)
-                    flips.append(1)
-                    logical_final.append(logical[i])
-                else:
-                    syndromes_final.append(-syndrome)
-                    flips.append(-1)
-                    logical_final.append(-logical[i])
+            if not flip:
+                flips = np.where(np.random.rand(n) < 0.5, 1, -1)
+                syndromes_final = syndromes_temp * flips[:, np.newaxis]
+                return syndromes_final, flips.tolist()
+            else:
+                syndromes_final = np.where(np.random.rand(n, 1) < 0.5, syndromes_temp, -syndromes_temp)
         else:
-            syndromes_final = syndromes_before_flip
-            logical_final = logical
-        output = output + (syndromes_final,)
-        output = output + (logical_final,)
-        if not flip:
-            output = output + (flips,)
-        return output
+            syndromes_final = syndromes_temp
+
+        return syndromes_final
 
 
 class SurfaceCode(QECCode):

@@ -4,46 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2707365d-dbed-42fc-a2c1-122fa115621b" name="Changes" comment="24_10: additional methods for Mid-term presentation, TraVAE, plots improved">
-      <change beforePath="$PROJECT_DIR$/.idea/QECthreshold.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/QecVAE_for_Phase_Recognition.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+    <list default="true" id="2707365d-dbed-42fc-a2c1-122fa115621b" name="Changes" comment="Cleaned up code and included some more comments.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/mainCluster.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/mainIsing.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/mainSupervised.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/parameters.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/parameters.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/error_code/decoding.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/error_code/error_code.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/error_code/error_code.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ising/ising_lattice.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ising/ising_lattice.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ising/ising_metropolis.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/data/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/bitflip.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/data/bitflip.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/circuit_level.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/depolarizing.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/data/depolarizing.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/ising.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/data/ising.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/phenomenological.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/predictions.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/data/results_wrapper.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/data/qecdata.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/data/qecdata.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/cnn.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/decoder.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/decoder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/encoder.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/encoder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/net.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/net.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/transformer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/vae.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/vae.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/net/vision_transformer.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/utils/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/utils/functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/utils/functions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/utils/loss.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/utils/loss.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/utils/max_unpool.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/utils/optimizer.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/utils/optimizer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/nn/utils/plotter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/utils/plotter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_dataset.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_error_code.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_error_code.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -300,8 +262,8 @@
     <list>
       <item itemvalue="Python.mainSupervised" />
       <item itemvalue="Python.main" />
-      <item itemvalue="Python.vae" />
       <item itemvalue="Python.testlab_depolarizing" />
+      <item itemvalue="Python.vae" />
       <item itemvalue="Python tests.Python tests for test_dataset.TestDataset.test_BitFlipSurfaceData" />
       <item itemvalue="Python tests.Python tests for test_dataset.TestDataset.test_DepolarizingSurfaceData" />
       <item itemvalue="Python tests.Python tests for test_error_code.TestErrorCode.test_depolarizing_surface_code" />
@@ -430,7 +392,9 @@
       <workItem from="1731668888767" duration="41000" />
       <workItem from="1731669094119" duration="2112000" />
       <workItem from="1733778408837" duration="9484000" />
-      <workItem from="1734010617247" duration="11318000" />
+      <workItem from="1734010617247" duration="13248000" />
+      <workItem from="1740648265383" duration="664000" />
+      <workItem from="1741072001151" duration="10000" />
     </task>
     <task id="LOCAL-00001" summary="initial test">
       <option name="closed" value="true" />
@@ -480,7 +444,15 @@
       <option name="project" value="LOCAL" />
       <updated>1729798844883</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Cleaned up code and included some more comments.">
+      <option name="closed" value="true" />
+      <created>1734081276696</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1734081276696</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -504,7 +476,8 @@
     <MESSAGE value="20_08" />
     <MESSAGE value="07_10_&#10;Implementation of TraVAE&#10;Changes to allow training with and without logicals for different structures&#10;Minor structure changes" />
     <MESSAGE value="24_10: additional methods for Mid-term presentation, TraVAE, plots improved" />
-    <option name="LAST_COMMIT_MESSAGE" value="24_10: additional methods for Mid-term presentation, TraVAE, plots improved" />
+    <MESSAGE value="Cleaned up code and included some more comments." />
+    <option name="LAST_COMMIT_MESSAGE" value="Cleaned up code and included some more comments." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

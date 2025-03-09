@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -8,9 +10,6 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms.v2 import Normalize, Compose, Resize, ToTensor
 from tqdm import tqdm
-from transformers import ViTImageProcessor, ViTForImageClassification
-
-import src.nn.net.vision_transformer
 
 
 def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Callable, epochs, batch_size,
@@ -38,35 +37,46 @@ def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Ca
     # Writes training summary to external file
     writer = SummaryWriter('logs/train')
 
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=3)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-8)
 
     best_val_loss = float("inf")
 
     k = 0.1
-    b = 6.5
+    if "skip" in model.name:
+        b = 11
+    else:
+        b = 9
     counter = 0
 
     for e in range(epochs):
         beta = (1 + np.exp(-k * e + b))
-        # beta = 500
+        # beta = 50000
         avg_loss = 0
         num_batches = 0
 
         # Training
         model.train()
-        for (batch_idx, batch) in enumerate(tqdm(train_loader)):
-            # print(batch_idx)
-            optimizer.zero_grad()
-            if len(batch) >= 2:
-                output, mean, log_var = model.forward([batch[0].to(device), batch[1].to(device)])
-                batch_loss = loss(output, mean, log_var, [batch[0].to(device), batch[1].to(device)], beta=beta)
-            else:
-                output, mean, log_var = model.forward(batch[0].to(device))
-                batch_loss = loss(output, mean, log_var, batch[0].to(device), beta=beta)
-            batch_loss.backward()
-            avg_loss += batch_loss
-            optimizer.step()
-            num_batches += 1
+        with tqdm(train_loader, unit="batch") as epoch_pbar:
+            for batch in epoch_pbar:
+                # print(batch_idx)
+                optimizer.zero_grad()
+                if len(batch) >= 2:
+                    output, mean, log_var = model.forward([batch[0].to(device), batch[1].to(device)])
+                    batch_loss = loss(output, mean, log_var, [batch[0].to(device), batch[1].to(device)], beta=beta)
+                else:
+                    output, mean, log_var = model.forward(batch[0].to(device))
+                    reconstruction_loss, kldiv_loss = loss(output, mean, log_var, batch[0].to(device), beta=beta)
+                    batch_loss = beta * reconstruction_loss + kldiv_loss
+                batch_loss.backward()
+                avg_loss += batch_loss
+                optimizer.step()
+                num_batches += 1
+
+                od = OrderedDict()
+                od["MSE"] = reconstruction_loss.item()
+                od["KLD"] = kldiv_loss.item()
+                epoch_pbar.set_postfix(od)
+
         avg_loss /= num_batches
         writer.add_scalar('training loss', avg_loss, global_step=e)
         print(f'Epoch {e + 1}/{epochs}, Loss: {avg_loss:.4f}')
@@ -79,11 +89,12 @@ def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Ca
             for (batch_idx, batch) in enumerate(val_loader):
                 if len(batch) >= 2:
                     val_output, val_mean, val_log_var = model.forward([batch[0].to(device), batch[1].to(device)])
-                    val_loss = loss(val_output, val_mean, val_log_var, [batch[0].to(device), batch[1].to(device)], beta=1)
+                    val_loss = loss(val_output, val_mean, val_log_var, [batch[0].to(device), batch[1].to(device)],
+                                    beta=1)
                 else:
                     val_output, val_mean, val_log_var = model.forward(batch[0].to(device))
-                    val_loss = loss(val_output, val_mean, val_log_var, batch[0].to(device),
-                                    beta=1)
+                    val_loss, val_kldiv_loss = loss(val_output, val_mean, val_log_var, batch[0].to(device),
+                                                    beta=1)
                 avg_val_loss += val_loss
                 num_batches += 1
             avg_val_loss /= num_batches

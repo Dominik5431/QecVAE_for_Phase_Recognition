@@ -29,32 +29,35 @@ class BitFlipToricData(QECDataset):
         return output
 
     def generate_data(self, n):
-        syndromes = []  # measurement syndromes
-        flips = []  # record if a syndrome has been flipped purposely
-        logical = []  # measured logicals
-        for noise in tqdm(self.noises):
+        syndromes_list = []  # measurement syndromes
+        flips_list = []  # record if a syndrome has been flipped purposely
+        logical_list = []  # measured logicals
+
+        for noise in self.noises:
             code = BitFlipToricCode(self.distance, noise, self.random_flip)
-            if not self.train and self.random_flip:
-                syndromes_noise, flips_noise = code.get_syndromes(n, self.train)
-                flips = flips + flips_noise
-            else:
+
+            if self.train or not self.random_flip:
                 syndromes_noise = code.get_syndromes(n, self.train)
-            syndromes = syndromes + list(
-                map(lambda x: x[:int(0.5 * len(x))], syndromes_noise))
+                flips_noise = None
+            else:
+                syndromes_noise, flips_noise = code.get_syndromes(n, self.train)
+                flips_list.extend(flips_noise)  # Extend instead of repeated list addition
 
-        # Bring data into right shape
-        # In torch, batch has indices (N,C,H,W)
-        if self.sequential:
-            syndromes = np.reshape(np.array(syndromes), (n * len(self.noises), self.distance ** 2, 2))
-        else:
-            syndromes = np.reshape(np.array(syndromes), (n * len(self.noises), 1, self.distance, self.distance))
+            syndromes_list.append(syndromes_noise[:, :syndromes_noise.shape[1] // 2])  # NumPy slicing
 
-        output = (torch.as_tensor(np.array(syndromes), device=self.device, dtype=torch.float32),)
+        # Stack syndromes for efficient reshaping
+        syndromes = np.vstack(syndromes_list).reshape(-1, 1, self.distance, self.distance)
+
+        # Convert to torch tensors
+        output = (torch.as_tensor(syndromes, device=self.device, dtype=torch.float32),)
 
         if not self.only_syndromes:
-            output = output + (torch.as_tensor(np.array(logical), device=self.device, dtype=torch.float32),)
+            logical_tensor = torch.as_tensor(np.array(logical_list), device=self.device, dtype=torch.float32)
+            output += (logical_tensor,)
+
         if self.random_flip:
-            output = output + (torch.as_tensor(np.array(flips), device=self.device, dtype=torch.float32),)
+            flips_tensor = torch.as_tensor(np.array(flips_list), device=self.device, dtype=torch.float32)
+            output += (flips_tensor,)
 
         return output
 

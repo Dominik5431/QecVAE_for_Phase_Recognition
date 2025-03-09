@@ -66,32 +66,32 @@ def d_ff(dis):
 
 class VariationalEncoder(nn.Module):
     """
-    Encoder network based on two times two convolutions, avg pooling, batch norms and two linear layers.
+    Encoder network based on two times two convolutions, max pooling, batch norms and two linear layers.
     Implements the reparameterization trick.
     """
     def __init__(self, latent_dims, distance, channels, device: torch.device = torch.device('cpu')):
         super(VariationalEncoder, self).__init__()
         # define structure
 
-        self.conv1_1 = nn.Conv2d(channels, d_conv_1(distance), kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
+        self.conv1_1 = nn.Conv2d(channels, d_conv_1(distance), kernel_size=3, stride=1, padding=1, bias=True, padding_mode='circular')
         self.conv1_2 = nn.Conv2d(d_conv_1(distance), d_conv_1(distance), kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
         self.bn1 = nn.BatchNorm2d(d_conv_1(distance))
-        self.avg_pool1 = nn.AvgPool2d(kernel_size=2, stride=2, padding=1)
-        self.conv2_1 = nn.Conv2d(d_conv_1(distance), d_conv_2(distance), kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
+        self.max_pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.conv2_1 = nn.Conv2d(d_conv_1(distance), d_conv_2(distance), kernel_size=3, stride=1, padding=1, bias=True, padding_mode='circular')
         self.conv2_2 = nn.Conv2d(d_conv_2(distance), d_conv_2(distance), kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
         self.bn2 = nn.BatchNorm2d(d_conv_2(distance))
-        self.avg_pool2 = nn.AvgPool2d(kernel_size=2, stride=2, padding=1)
+        self.max_pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         # self.conv3_1 = nn.Conv2d(10, 20, kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
         # self.conv3_2 = nn.Conv2d(20, 20, kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
         # self.bn3 = nn.BatchNorm2d(20)
         # self.avg_pool3 = nn.AvgPool2d(kernel_size=2, stride=2, padding=1)
         self.flatten = nn.Flatten()
         # if distance == 7:
-        self.linear = nn.Linear((d_conv_2(distance) * int(0.25 * distance + 3) * int(0.25 * distance + 3)),
+        self.linear = nn.Linear((d_conv_2(distance) * int(0.25 * distance + 3/4) * int(0.25 * distance + 3/4)),
                                     d_ff(distance))  # got shape from size analysis: after pooling: (W-F+2P)/S + 1
         # else:
           #  self.linear = nn.Linear(())
-        self.dropout = nn.Dropout(0.25)
+        self.dropout = nn.Dropout(0.1)
         self.bn4 = nn.BatchNorm1d(d_ff(distance))
         # self.fc_mean = nn.Linear(20 + 5, latent_dims)
         # self.fc_log_var = nn.Linear(20 + 5, latent_dims)
@@ -111,11 +111,11 @@ class VariationalEncoder(nn.Module):
         x = F.relu(self.conv1_1(x))
         x = F.relu(self.bn1(self.conv1_2(x)))
         input_size1 = x.size()
-        x = self.avg_pool1(x)
+        x = self.max_pool1(x)
         x = F.relu(self.conv2_1(x))
         x = F.relu(self.bn2(self.conv2_2(x)))
         input_size2 = x.size()
-        x = self.avg_pool2(x)
+        x = self.max_pool2(x)
         # x = F.relu(self.conv3_1(x))
         # x = F.relu(self.bn3(self.conv3_2(x)))
         # x = self.avg_pool3(x)
@@ -126,7 +126,7 @@ class VariationalEncoder(nn.Module):
 
         z_log_var = self.fc_log_var(x)
         z = z_mean + torch.exp(0.5 * z_log_var) * self.N.sample(z_mean.shape).to(self.device)
-        return z_mean, z_log_var, z, None, None, input_size1, input_size2
+        return z_mean, z_log_var, z, None
 
 
 class VariationalEncoderSimple(nn.Module):
@@ -167,46 +167,13 @@ class VariationalEncoderSimple(nn.Module):
         z_mean = self.fc_mean(torch.concat((s, l), dim=1))
         z_log_var = self.fc_log_var(torch.concat((s, l), dim=1))
         z = z_mean + torch.exp(0.5 * z_log_var) * self.N.sample(z_mean.shape).to(self.device)
-        return z_mean, z_log_var, z, indices, 0, input_size, 0, inf_trans
-
-
-class VariationalEncoderDeep(nn.Module):
-    """
-    Variational Encoder that only contains linear layers and no convolutions.
-    """
-    def __init__(self, latent_dims: int, distance: int):
-        super(VariationalEncoderDeep, self).__init__()
-        self.flatten = nn.Flatten()
-        self.linear1 = nn.Linear(distance ** 2, 100)
-        self.dropout = nn.Dropout(0.3)
-        self.linear2 = nn.Linear(100, 100)
-        self.linear3 = nn.Linear(100, 100)
-        self.linear_mean = nn.Linear(100, latent_dims)
-        self.linear_log_var = nn.Linear(100, latent_dims)
-
-        self.N = torch.distributions.Normal(0, 1)
-        # self.device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
-        self.device = torch.device('cpu')
-
-    def forward(self, x):
-        x = self.flatten(x)
-        x = F.relu(self.linear1(x))
-        x = self.dropout(x)
-        x = F.relu(self.linear2(x))
-        x = self.dropout(x)
-        x = F.relu(self.linear3(x))
-        x = self.dropout(x)
-        z_mean = self.linear_mean(x)
-        z_log_var = self.linear_log_var(x)
-        z = z_mean + torch.exp(0.5 * z_log_var) * self.N.sample(
-            z_mean.shape).to(self.device)
-        return z_mean, z_log_var, z, None, None, None, None
+        return z_mean, z_log_var, z, None
 
 
 class VariationalEncoderIsing(nn.Module):
     """
     Encoder that only contains convolutions and no pooling.
-    Attention: Does not work with any distance due to stride=2.
+    Attention: Does not work with any distance.
     """
     def __init__(self, latent_dims, distance, channels):
         super(VariationalEncoderIsing, self).__init__()
@@ -232,4 +199,77 @@ class VariationalEncoderIsing(nn.Module):
         z_log_var = self.linear_log_var(x)
         z = z_mean + torch.exp(0.5 * z_log_var) * self.N.sample(
             z_mean.shape).to(self.device)
-        return z_mean, z_log_var, z
+        return z_mean, z_log_var, z, None
+
+
+class VariationalEncoderSkip(nn.Module):
+    """
+    Encoder network based on two times two convolutions, max pooling, batch norms and two linear layers.
+    Implements the reparameterization trick.
+    """
+    def __init__(self, latent_dims, distance, channels, device: torch.device = torch.device('cpu')):
+        super(VariationalEncoderSkip, self).__init__()
+        # define structure
+
+        self.conv1_1 = nn.Conv2d(channels, d_conv_1(distance), kernel_size=3, stride=1, padding=1, bias=True, padding_mode='circular')
+        self.conv1_2 = nn.Conv2d(d_conv_1(distance), d_conv_1(distance), kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
+        self.bn1 = nn.BatchNorm2d(d_conv_1(distance))
+        self.max_pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.conv2_1 = nn.Conv2d(d_conv_1(distance), d_conv_2(distance), kernel_size=3, stride=1, padding=1, bias=True, padding_mode='circular')
+        self.conv2_2 = nn.Conv2d(d_conv_2(distance), d_conv_2(distance), kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
+        self.bn2 = nn.BatchNorm2d(d_conv_2(distance))
+        self.max_pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.conv_skip_1 = self.conv2_1 = nn.Conv2d(d_conv_1(distance), d_conv_2(distance), kernel_size=3, stride=1, padding=1, bias=True, padding_mode='circular')
+        self.conv_skip_2 = nn.Conv2d(d_conv_2(distance), d_conv_2(distance), kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
+
+        # self.conv3_1 = nn.Conv2d(10, 20, kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
+        # self.conv3_2 = nn.Conv2d(20, 20, kernel_size=2, stride=1, padding=1, bias=True, padding_mode='circular')
+        # self.bn3 = nn.BatchNorm2d(20)
+        # self.avg_pool3 = nn.AvgPool2d(kernel_size=2, stride=2, padding=1)
+        self.flatten = nn.Flatten()
+        # if distance == 7:
+        self.linear = nn.Linear((d_conv_2(distance) * int(0.25 * distance + 3/4) * int(0.25 * distance + 3/4)),
+                                    d_ff(distance))  # got shape from size analysis: after pooling: (W-F+2P)/S + 1
+        # else:
+          #  self.linear = nn.Linear(())
+        self.dropout = nn.Dropout(0.1)
+        self.bn4 = nn.BatchNorm1d(d_ff(distance))
+        # self.fc_mean = nn.Linear(20 + 5, latent_dims)
+        # self.fc_log_var = nn.Linear(20 + 5, latent_dims)
+        self.fc_mean = nn.Linear(d_ff(distance), latent_dims)
+        self.fc_log_var = nn.Linear(d_ff(distance), latent_dims)
+
+        self.N = torch.distributions.Normal(0, 1)
+        # self.device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
+        self.device = device
+
+        # self.linearl_1 = nn.Linear(4 * distance, 10)
+        # self.linearl_2 = nn.Linear(10, 5)
+
+    def forward(self, x):
+        # calculate forward pass
+
+        x = F.relu(self.conv1_1(x))
+        x = F.relu(self.bn1(self.conv1_2(x)))
+        input_size1 = x.size()
+        x = self.max_pool1(x)
+
+        skip = F.relu(self.conv_skip_1(x))
+        skip = F.relu(self.conv_skip_2(skip))
+
+        x = F.relu(self.conv2_1(x))
+        x = F.relu(self.bn2(self.conv2_2(x)))
+        input_size2 = x.size()
+        x = self.max_pool2(x)
+        # x = F.relu(self.conv3_1(x))
+        # x = F.relu(self.bn3(self.conv3_2(x)))
+        # x = self.avg_pool3(x)
+        x = self.flatten(x)
+        x = F.relu(self.bn4(self.dropout(self.linear(x))))
+
+        z_mean = self.fc_mean(x)
+
+        z_log_var = self.fc_log_var(x)
+        z = z_mean + torch.exp(0.5 * z_log_var) * self.N.sample(z_mean.shape).to(self.device)
+        return z_mean, z_log_var, z, skip
+

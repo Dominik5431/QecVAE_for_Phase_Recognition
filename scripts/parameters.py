@@ -9,19 +9,20 @@ def parameters():
     random_flip = True  # Flips every second syndrome to assure Z2 symmetry in the data
     cluster = False  # Set True when executing on the HPC cluster
 
-    structures = ['standard', 'simple', 'skip', 'ising', 'transformer', 'vision-transformer', 'cnn']
-    structure = structures[3]  # Select encoder-decoder structure
+    # structures = ['standard', 'simple', 'skip', 'ising', 'transformer', 'vision-transformer', 'cnn']
+    structures = ['conv-only', 'upsampling', 'skip']
+    structure = structures[1]  # Select encoder-decoder structure
 
-    lr = 0.0002
+    lr = 1e-4
     noise_model = 'BitFlip'  # Implemented noise models: 'BitFlip',  'Depolarizing'
     assert noise_model in ['BitFlip', 'Depolarizing']
 
     # Training hyperparameters
     num_epochs = 100
     batch_size = 100
-    data_size = 500
+    data_size = 10000
 
-    distance = 27  # 15, 21, 27, 33, 39, 45
+    distance = 25
 
     # Load samples / Save generated samples
     load_data = True
@@ -30,8 +31,9 @@ def parameters():
     # Train on noise strengths sampled uniformly along the Nishimori temperature line coming out from the
     # statistical mechanical mapping of the Toric code to some random bond Ising models.
     if noise_model == 'Depolarizing':
-        noises_training = np.array(
-            list(map(lambda x: np.exp(-4 / x) / (1 / 3 + np.exp(-4 / x)), np.arange(0.02, 3, 0.02))))
+        # noises_training = np.array(
+        #    list(map(lambda x: np.exp(-4 / x) / (1 / 3 + np.exp(-4 / x)), np.arange(0.1, 3, 0.1))))
+        noises_training = np.array([0.1, 0.2])
     else:
         noises_training = np.array(
             list(map(lambda x: np.exp(-2 / x) / (1 + np.exp(-2 / x)), np.arange(0.1, 2, 0.1))))

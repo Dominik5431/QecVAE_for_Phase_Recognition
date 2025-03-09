@@ -65,7 +65,7 @@ def sus(noise):
     return squared - abs_s ** 2
 
 
-distance = 21
+distance = 29
 task = 3
 
 if task == 0:
@@ -207,7 +207,7 @@ elif task == 20:  # with 1, 0 instead of -1, 1
     plt.legend()
     plt.show()
 elif task == 3:
-    n1 = 50000
+    n1 = 200000
     temperature = np.arange(0.02, 3, 0.02)
     noises = np.exp(-2 / temperature) / (1 + np.exp(-2 / temperature))
     sus = np.zeros(len(noises))
@@ -241,6 +241,6 @@ elif task == 3:
     ax2.set_ylabel(r'$d \cdot$ susceptibility')
     plt.show()
 
-    np.save('mean.npy', means)
-    np.save('sus.npy', sus)
+    np.save(f'mean_{distance}.npy', means)
+    np.save(f'sus_{distance}.npy', sus)
     print(sus)

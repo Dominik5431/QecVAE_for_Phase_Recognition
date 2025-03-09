@@ -29,35 +29,32 @@ class DepolarizingToricData(QECDataset):
         return output
 
     def generate_data(self, n):
-        syndromes = []  # measurement syndromes
-        flips = []  # record if a syndrome has been flipped purposely
-        logical = []  # measured logicals
+        syndromes_list = []  # measurement syndromes
+        flips_list = []  # record if a syndrome has been flipped purposely
+        logical_list = []  # measured logicals
 
         # Generate data for each noise value
         for noise in tqdm(self.noises):
             code = DepolarizingToricCode(self.distance, noise, self.random_flip)
-            if not self.train:
-                syndromes_noise, logical_noise, flips_noise = code.get_syndromes(n, self.train,
-                                                                                 only_syndromes=self.only_syndromes)
-                flips = flips + flips_noise
-            else:
-                syndromes_noise, logical_noise = code.get_syndromes(n, self.train, self.only_syndromes)
-            syndromes = syndromes + list(syndromes_noise)
-            logical = logical + list(logical_noise)
 
-        # Bring data into right shape
-        # In torch, batch has indices (N,C,H,W)
-        if self.sequential:
-            syndromes = np.reshape(np.array(syndromes), (n * len(self.noises), self.distance ** 2, 2))
-        else:
-            syndromes = np.reshape(np.array(syndromes), (n * len(self.noises), 2, self.distance, self.distance))
+            if self.train or not self.random_flip:
+                syndromes_noise = code.get_syndromes(n, self.train)
+                flips_noise = None
+            else:
+                syndromes_noise, flips_noise = code.get_syndromes(n, self.train)
+                flips_list.extend(flips_noise)  # Extend instead of repeated list addition
+
+            syndromes_list.append(syndromes_noise)
+
+        # Stack syndromes for efficient reshaping
+        syndromes = np.vstack(syndromes_list).reshape(-1, 2, self.distance, self.distance)
 
         output = (torch.as_tensor(np.array(syndromes), device=self.device, dtype=torch.float32),)
 
         if not self.only_syndromes:
-            output = output + (torch.as_tensor(np.array(logical), device=self.device, dtype=torch.float32),)
+            output = output + (torch.as_tensor(np.array(logical_list), device=self.device, dtype=torch.float32),)
         if self.random_flip:
-            output = output + (torch.as_tensor(np.array(flips), device=self.device, dtype=torch.float32),)
+            output = output + (torch.as_tensor(np.array(flips_list), device=self.device, dtype=torch.float32),)
 
         return output
 

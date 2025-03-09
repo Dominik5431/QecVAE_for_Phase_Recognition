@@ -43,6 +43,11 @@ if __name__ == "__main__":
     (RANDOM_FLIP, LR, NOISE_MODEL, NUM_EPOCHS, BATCH_SIZE, DATA_SIZE, DISTANCE, LOAD_DATA, SAVE_DATA, NOISES_TRAINING,
      NOISES_TESTING, RATIO, LATENT_DIMS, STRUCTURE, CLUSTER) = parameters()
 
+    if STRUCTURE == 'upsampling' or STRUCTURE == 'skip':
+        assert DISTANCE in [5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45]
+    elif STRUCTURE == 'conv-only':
+        assert DISTANCE in [9, 17, 25, 33, 41, 49]
+
     sequential = False
     surface = False
     only_syndromes = True
@@ -75,12 +80,12 @@ if __name__ == "__main__":
     # r11: reduced complexity of model
 
     # ff1: final round for mid-term presentation
+    # ff2: final data for thesis
 
-    iteration = "f2"
+    iteration = "ff2"
 
-    name_data = str(NOISE_MODEL) + "_" + ("rf_" if RANDOM_FLIP else "") + (
-        "sq_" if sequential else "") + iteration + "-" + str(DISTANCE)
-    name_NN = "net_NN_" + str(NOISE_MODEL) + "_" + STRUCTURE + "_dim" + str(LATENT_DIMS) + (
+    name_data = str(NOISE_MODEL) + "_" + ("rf_" if RANDOM_FLIP else "") + iteration + "-" + str(DISTANCE)
+    name_NN = "nn_" + str(NOISE_MODEL) + "_" + STRUCTURE + "_dim" + str(LATENT_DIMS) + (
         "_rf_" if RANDOM_FLIP else "") + iteration + "-" + str(DISTANCE)
     name_dict_recon = "reconstruction_" + str(NOISE_MODEL) + "_" + STRUCTURE + (
         "_rf_" if RANDOM_FLIP else "") + str(DISTANCE) + iteration
@@ -102,8 +107,10 @@ if __name__ == "__main__":
             f.write("Task: " + str(task) + task_description[task] + "\n")
 
     if task == 0:  # Create data
-        # Generates data samples and saves them as .pt file.
-        logging.debug("Create data.")
+        # Generates data samples and
+        #
+        # saves them as .pt file.
+        print("Create data.")
         if surface:  # sequential data for transformer-based encoder/decoder
             (DepolarizingSurfaceData(distance=DISTANCE, noises=NOISES_TRAINING, name=name_data.format(DISTANCE),
                                      load=False, device=device)
@@ -201,14 +208,14 @@ if __name__ == "__main__":
                                                   load=False, random_flip=RANDOM_FLIP, sequential=sequential,
                                                   device=device, cluster=CLUSTER, only_syndromes=only_syndromes)
                                  .eval()
-                                 .initialize(num=500))
+                                 .initialize(num=1000))
                 elif NOISE_MODEL == 'Depolarizing':
                     data_test = (DepolarizingToricData(distance=DISTANCE, noises=[noise],
                                                        name="DS_Testing-{0}".format(DISTANCE),
                                                        load=False, random_flip=RANDOM_FLIP, sequential=sequential,
                                                        device=device, cluster=CLUSTER, only_syndromes=only_syndromes)
                                  .eval()
-                                 .initialize(num=500))
+                                 .initialize(num=1000))
                 assert data_test is not None
                 # res = test_model_latent_space(model, data_test)
 
@@ -247,7 +254,8 @@ if __name__ == "__main__":
                              .eval()
                              .initialize(num=100))
             results[noise] = test_model_reconstruction_error(model, data_test,
-                                                             torch.nn.MSELoss(reduction='none'))  # returns avg_loss, variance
+                                                             torch.nn.MSELoss(
+                                                                 reduction='none'))  # returns avg_loss, variance
         reconstructions.add(DISTANCE, results)
         reconstructions.save()
     elif task == 3:  # Plot latent space, computed in task 2
@@ -291,24 +299,31 @@ if __name__ == "__main__":
     elif task == 6:  # Get mean and variance of raw data samples
         # Calculates mean and variance of the raw syndrome samples.
         results = {}
-        for noise in tqdm(NOISES_TESTING):
+        # for noise in tqdm(NOISES_TESTING):
+        for noise in np.arange(0.01, 0.2, 0.01):
             if NOISE_MODEL == 'BitFlip':
                 data_test = (BitFlipToricData(distance=DISTANCE, noises=[noise],
                                               name="BFS_Testing-{0}".format(DISTANCE),
-                                              load=False, random_flip=RANDOM_FLIP, sequential=sequential)
+                                              load=False, random_flip=False, sequential=sequential,
+                                              only_syndromes=True, device=device)
                              .eval()
-                             .initialize(num=10000))
-                mean = torch.mean(data_test.syndromes, dim=(1, 2, 3))
-                var = torch.var(data_test.syndromes, dim=(1, 2, 3))
+                             .initialize(num=1000))
+                # mean_tot = torch.mean(data_test.syndromes[0], dim=(0, 1, 2, 3))
+                mean = torch.mean(data_test.syndromes[0], dim=(1, 2, 3))
+                var = torch.var(data_test.syndromes[0], dim=(1, 2, 3))
+                # print(mean_tot)
+                # print(var)
                 results[noise] = (mean, var)
             elif NOISE_MODEL == 'Depolarizing':
                 data_test = (DepolarizingToricData(distance=DISTANCE, noises=[noise],
                                                    name="DS_Testing-{0}".format(DISTANCE),
-                                                   load=False, random_flip=RANDOM_FLIP, sequential=sequential)
+                                                   load=False, random_flip=RANDOM_FLIP, sequential=sequential,
+                                                   device=device)
                              .eval()
                              .initialize(num=100))
-                mean = torch.mean(data_test.syndromes, dim=(2, 3))
-                var = torch.var(data_test.syndromes, dim=(2, 3))
+                mean_tot = torch.mean(data_test.syndromes[0], dim=(0, 1, 2, 3))
+                mean = torch.mean(data_test.syndromes[0], dim=(1, 2, 3))
+                var = torch.var(mean)
                 results[noise] = (mean, var)
         raw = ResultsWrapper(name="mean_variance_" + str(NOISE_MODEL).lower() + "_2_" + str(DISTANCE))
         raw.add(DISTANCE, results)
