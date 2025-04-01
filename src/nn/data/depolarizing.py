@@ -48,8 +48,8 @@ class DepolarizingToricData(QECDataset):
 
         # Stack syndromes for efficient reshaping
         syndromes = np.vstack(syndromes_list).reshape(-1, 2, self.distance, self.distance)
-
-        output = (torch.as_tensor(np.array(syndromes), device=self.device, dtype=torch.float32),)
+        syndromes = syndromes.astype(np.float32)
+        output = (torch.as_tensor(syndromes, device=self.device),)
 
         if not self.only_syndromes:
             output = output + (torch.as_tensor(np.array(logical_list), device=self.device, dtype=torch.float32),)

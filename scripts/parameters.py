@@ -18,11 +18,10 @@ def parameters():
     assert noise_model in ['BitFlip', 'Depolarizing']
 
     # Training hyperparameters
-    num_epochs = 100
+    num_epochs = 10
     batch_size = 100
-    data_size = 10000
-
-    distance = 25
+    distance = 25  # 25
+    data_size = 8000 if distance > 30 else 10000
 
     # Load samples / Save generated samples
     load_data = True
@@ -31,15 +30,19 @@ def parameters():
     # Train on noise strengths sampled uniformly along the Nishimori temperature line coming out from the
     # statistical mechanical mapping of the Toric code to some random bond Ising models.
     if noise_model == 'Depolarizing':
-        # noises_training = np.array(
-        #    list(map(lambda x: np.exp(-4 / x) / (1 / 3 + np.exp(-4 / x)), np.arange(0.1, 3, 0.1))))
-        noises_training = np.array([0.1, 0.2])
+        noises_training = np.array(
+           list(map(lambda x: np.exp(-4 / x) / (1 / 3 + np.exp(-4 / x)), np.arange(0.1, 3, 0.05))))
     else:
         noises_training = np.array(
-            list(map(lambda x: np.exp(-2 / x) / (1 + np.exp(-2 / x)), np.arange(0.1, 2, 0.1))))
+            list(map(lambda x: np.exp(-2 / x) / (1 + np.exp(-2 / x)), np.arange(0.1, 2, 0.05))))
 
     # Data for evaluating latent space and reocnstruction error is set to be equal the training data
-    noises_testing = noises_training
+    if noise_model == 'Depolarizing':
+        noises_testing = np.array(
+            list(map(lambda x: np.exp(-4 / x) / (1 / 3 + np.exp(-4 / x)), np.arange(0.1, 3, 0.02))))
+    else:
+        noises_testing = np.array(
+            list(map(lambda x: np.exp(-2 / x) / (1 + np.exp(-2 / x)), np.arange(0.1, 2, 0.02))))
 
     # Test/Val split
     ratio = 0.8

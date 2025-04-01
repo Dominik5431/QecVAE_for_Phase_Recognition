@@ -4,8 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2707365d-dbed-42fc-a2c1-122fa115621b" name="Changes" comment="Cleaned up code and included some more comments.">
+    <list default="true" id="2707365d-dbed-42fc-a2c1-122fa115621b" name="Changes" comment="Final model structures.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/parameters.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/parameters.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nn/data/depolarizing.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/data/depolarizing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nn/net/decoder.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/decoder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nn/net/encoder.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/net/encoder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nn/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nn/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/nn/utils/plotter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/nn/utils/plotter.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,57 +64,57 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.Python tests for test_dataset.TestDataset.test_BitFlipSurfaceData.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for test_dataset.TestDataset.test_DepolarizingSurfaceData.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for test_error_code.TestErrorCode.test_bit_flip_surface_code.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for test_error_code.TestErrorCode.test_depolarizing_surface_code.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for test_error_code.TestErrorCode.test_initialization.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_dataset.py.executor&quot;: &quot;Debug&quot;,
-    &quot;Python tests.Python tests in test_error_code.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_transformer.py.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.Temp.executor&quot;: &quot;Run&quot;,
-    &quot;Python.dataset.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.decoding.executor&quot;: &quot;Run&quot;,
-    &quot;Python.error_code.executor&quot;: &quot;Run&quot;,
-    &quot;Python.ising.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.main.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.mainCluster.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.mainIsing.executor&quot;: &quot;Run&quot;,
-    &quot;Python.mainSupervised.executor&quot;: &quot;Run&quot;,
-    &quot;Python.net.executor&quot;: &quot;Run&quot;,
-    &quot;Python.parameters.executor&quot;: &quot;Run&quot;,
-    &quot;Python.plotter.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.pr.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.scratch.executor&quot;: &quot;Run&quot;,
-    &quot;Python.scratch_1.executor&quot;: &quot;Run&quot;,
-    &quot;Python.testing.executor&quot;: &quot;Run&quot;,
-    &quot;Python.testlab.executor&quot;: &quot;Run&quot;,
-    &quot;Python.testlab_bitflip.executor&quot;: &quot;Run&quot;,
-    &quot;Python.testlab_depolarizing.executor&quot;: &quot;Run&quot;,
-    &quot;Python.train.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.vae.executor&quot;: &quot;Run&quot;,
-    &quot;Python.vision-transformer.executor&quot;: &quot;Debug&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/dseip/PycharmProjects/QECthreshold&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;editor.preferences.fonts.default&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.Python tests for test_dataset.TestDataset.test_BitFlipSurfaceData.executor": "Run",
+    "Python tests.Python tests for test_dataset.TestDataset.test_DepolarizingSurfaceData.executor": "Run",
+    "Python tests.Python tests for test_error_code.TestErrorCode.test_bit_flip_surface_code.executor": "Run",
+    "Python tests.Python tests for test_error_code.TestErrorCode.test_depolarizing_surface_code.executor": "Run",
+    "Python tests.Python tests for test_error_code.TestErrorCode.test_initialization.executor": "Run",
+    "Python tests.Python tests in test.py.executor": "Run",
+    "Python tests.Python tests in test_dataset.py.executor": "Debug",
+    "Python tests.Python tests in test_error_code.py.executor": "Run",
+    "Python tests.Python tests in test_transformer.py.executor": "Debug",
+    "Python.Temp.executor": "Run",
+    "Python.dataset.executor": "Debug",
+    "Python.decoding.executor": "Run",
+    "Python.error_code.executor": "Run",
+    "Python.ising.executor": "Debug",
+    "Python.main.executor": "Run",
+    "Python.mainCluster.executor": "Debug",
+    "Python.mainIsing.executor": "Run",
+    "Python.mainSupervised.executor": "Run",
+    "Python.net.executor": "Run",
+    "Python.parameters.executor": "Run",
+    "Python.plotter.executor": "Debug",
+    "Python.pr.executor": "Debug",
+    "Python.scratch.executor": "Run",
+    "Python.scratch_1.executor": "Run",
+    "Python.testing.executor": "Run",
+    "Python.testlab.executor": "Run",
+    "Python.testlab_bitflip.executor": "Run",
+    "Python.testlab_depolarizing.executor": "Run",
+    "Python.train.executor": "Debug",
+    "Python.vae.executor": "Run",
+    "Python.vision-transformer.executor": "Debug",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/Users/dseip/PycharmProjects/QECthreshold",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
-      &quot;Python&quot;
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
+      "Python"
     ]
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\Dominik\PycharmProjects\QECthreshold\scripts" />
@@ -116,7 +124,7 @@
       <recent name="C:\Users\Dominik\PycharmProjects\QECthreshold\src" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.mainSupervised">
+  <component name="RunManager" selected="Python.main">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="QecVAE_for_Phase_Recognition" />
       <option name="ENV_FILES" value="" />
@@ -395,6 +403,12 @@
       <workItem from="1734010617247" duration="13248000" />
       <workItem from="1740648265383" duration="664000" />
       <workItem from="1741072001151" duration="10000" />
+      <workItem from="1741251188069" duration="44366000" />
+      <workItem from="1742300832455" duration="21892000" />
+      <workItem from="1742387247912" duration="14000" />
+      <workItem from="1742387384814" duration="32638000" />
+      <workItem from="1742842792283" duration="17928000" />
+      <workItem from="1743245147252" duration="66086000" />
     </task>
     <task id="LOCAL-00001" summary="initial test">
       <option name="closed" value="true" />
@@ -452,7 +466,15 @@
       <option name="project" value="LOCAL" />
       <updated>1734081276696</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Final model structures.">
+      <option name="closed" value="true" />
+      <created>1741510529442</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1741510529442</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -477,7 +499,8 @@
     <MESSAGE value="07_10_&#10;Implementation of TraVAE&#10;Changes to allow training with and without logicals for different structures&#10;Minor structure changes" />
     <MESSAGE value="24_10: additional methods for Mid-term presentation, TraVAE, plots improved" />
     <MESSAGE value="Cleaned up code and included some more comments." />
-    <option name="LAST_COMMIT_MESSAGE" value="Cleaned up code and included some more comments." />
+    <MESSAGE value="Final model structures." />
+    <option name="LAST_COMMIT_MESSAGE" value="Final model structures." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -524,22 +547,17 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/net/encoder.py</url>
-          <line>219</line>
+          <line>187</line>
           <option name="timeStamp" value="27" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/net/decoder.py</url>
-          <line>258</line>
-          <option name="timeStamp" value="28" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>513</line>
+          <line>832</line>
           <option name="timeStamp" value="31" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>27</line>
+          <line>337</line>
           <option name="timeStamp" value="36" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -549,7 +567,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>425</line>
+          <line>748</line>
           <option name="timeStamp" value="46" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -574,12 +592,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/train.py</url>
-          <line>171</line>
+          <line>186</line>
           <option name="timeStamp" value="69" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/train.py</url>
-          <line>165</line>
+          <line>180</line>
           <option name="timeStamp" value="75" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -589,47 +607,32 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/scripts/main.py</url>
-          <line>312</line>
+          <line>375</line>
           <option name="timeStamp" value="77" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/test.py</url>
-          <line>32</line>
+          <line>37</line>
           <option name="timeStamp" value="78" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>259</line>
+          <line>582</line>
           <option name="timeStamp" value="79" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>287</line>
+          <line>610</line>
           <option name="timeStamp" value="80" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/net/encoder.py</url>
-          <line>106</line>
-          <option name="timeStamp" value="83" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/net/decoder.py</url>
-          <line>127</line>
-          <option name="timeStamp" value="84" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/net/encoder.py</url>
-          <line>165</line>
+          <line>166</line>
           <option name="timeStamp" value="87" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>83</line>
-          <option name="timeStamp" value="95" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>93</line>
+          <line>403</line>
           <option name="timeStamp" value="102" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -639,77 +642,42 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/net/vae.py</url>
-          <line>169</line>
+          <line>173</line>
           <option name="timeStamp" value="110" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/net/vae.py</url>
-          <line>172</line>
+          <line>176</line>
           <option name="timeStamp" value="112" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/train.py</url>
-          <line>233</line>
-          <option name="timeStamp" value="113" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/data/depolarizing.py</url>
-          <line>36</line>
-          <option name="timeStamp" value="115" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/train.py</url>
-          <line>64</line>
+          <line>72</line>
           <option name="timeStamp" value="117" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/utils/loss.py</url>
-          <line>41</line>
-          <option name="timeStamp" value="118" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/train.py</url>
-          <line>71</line>
+          <line>85</line>
           <option name="timeStamp" value="119" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/error_code/error_code.py</url>
-          <line>513</line>
-          <option name="timeStamp" value="120" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>467</line>
+          <line>787</line>
           <option name="timeStamp" value="121" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/net/vae.py</url>
-          <line>56</line>
-          <option name="timeStamp" value="123" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/nn/net/encoder.py</url>
-          <line>102</line>
-          <option name="timeStamp" value="124" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/scripts/main.py</url>
-          <line>296</line>
-          <option name="timeStamp" value="125" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>97</line>
+          <line>407</line>
           <option name="timeStamp" value="130" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>133</line>
+          <line>446</line>
           <option name="timeStamp" value="133" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>178</line>
+          <line>501</line>
           <option name="timeStamp" value="134" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -719,18 +687,118 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>105</line>
+          <line>415</line>
           <option name="timeStamp" value="136" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
-          <line>182</line>
+          <line>505</line>
           <option name="timeStamp" value="138" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$APPLICATION_CONFIG_DIR$/scratches/pr.py</url>
           <line>96</line>
           <option name="timeStamp" value="140" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/net/vae.py</url>
+          <line>66</line>
+          <option name="timeStamp" value="142" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/net/encoder.py</url>
+          <line>193</line>
+          <option name="timeStamp" value="144" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/net/decoder.py</url>
+          <line>229</line>
+          <option name="timeStamp" value="145" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/net/encoder.py</url>
+          <line>252</line>
+          <option name="timeStamp" value="146" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/net/decoder.py</url>
+          <line>164</line>
+          <option name="timeStamp" value="147" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/main.py</url>
+          <line>358</line>
+          <option name="timeStamp" value="148" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/main.py</url>
+          <line>352</line>
+          <option name="timeStamp" value="149" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
+          <line>894</line>
+          <option name="timeStamp" value="151" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
+          <line>797</line>
+          <option name="timeStamp" value="153" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
+          <line>425</line>
+          <option name="timeStamp" value="155" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/main.py</url>
+          <line>288</line>
+          <option name="timeStamp" value="156" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
+          <line>739</line>
+          <option name="timeStamp" value="160" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
+          <line>206</line>
+          <option name="timeStamp" value="161" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
+          <line>157</line>
+          <option name="timeStamp" value="162" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/utils/plotter.py</url>
+          <line>172</line>
+          <option name="timeStamp" value="163" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/test.py</url>
+          <line>29</line>
+          <option name="timeStamp" value="164" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/main.py</url>
+          <line>153</line>
+          <option name="timeStamp" value="166" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/main.py</url>
+          <line>161</line>
+          <option name="timeStamp" value="168" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/nn/data/depolarizing.py</url>
+          <line>49</line>
+          <option name="timeStamp" value="169" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/scripts/main.py</url>
+          <line>392</line>
+          <option name="timeStamp" value="170" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -752,21 +820,24 @@
     <SUITE FILE_PATH="coverage/QECthreshold$main.coverage" NAME="main Coverage Results" MODIFIED="1730113699380" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/QECthreshold$net.coverage" NAME="net Coverage Results" MODIFIED="1713530114638" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/NN" />
     <SUITE FILE_PATH="coverage/QECthreshold$testing.coverage" NAME="testing Coverage Results" MODIFIED="1729494714105" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
-    <SUITE FILE_PATH="coverage/QECthreshold$pr.coverage" NAME="pr Coverage Results" MODIFIED="1730114368154" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
-    <SUITE FILE_PATH="coverage/QECthreshold$dataset.coverage" NAME="dataset Coverage Results" MODIFIED="1713520804422" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/NN" />
-    <SUITE FILE_PATH="coverage/QECthreshold$mainIsing.coverage" NAME="mainIsing Coverage Results" MODIFIED="1718706292784" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/QECthreshold$decoding.coverage" NAME="decoding Coverage Results" MODIFIED="1726128554541" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/error_code" />
-    <SUITE FILE_PATH="coverage/QECthreshold$mainCluster.coverage" NAME="mainCluster Coverage Results" MODIFIED="1721826027012" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/QECthreshold$mainSupervised.coverage" NAME="mainSupervised Coverage Results" MODIFIED="1721985513514" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
-    <SUITE FILE_PATH="coverage/QECthreshold$vision_transformer.coverage" NAME="vision-transformer Coverage Results" MODIFIED="1721034586589" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/nn/net" />
     <SUITE FILE_PATH="coverage/QECthreshold$parameters.coverage" NAME="parameters Coverage Results" MODIFIED="1720975573678" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/QECthreshold$testlab_bitflip.coverage" NAME="testlab_bitflip Coverage Results" MODIFIED="1729171734430" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/QECthreshold$Temp.coverage" NAME="Temp Coverage Results" MODIFIED="1712750651989" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
     <SUITE FILE_PATH="coverage/QECthreshold$vae.coverage" NAME="vae Coverage Results" MODIFIED="1726223781775" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/nn/net" />
+    <SUITE FILE_PATH="coverage/QecVAE_for_Phase_Recognition$testlab_bitflip.coverage" NAME="testlab_bitflip Coverage Results" MODIFIED="1741344819674" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
+    <SUITE FILE_PATH="coverage/QECthreshold$pr.coverage" NAME="pr Coverage Results" MODIFIED="1730114368154" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
+    <SUITE FILE_PATH="coverage/QECthreshold$mainIsing.coverage" NAME="mainIsing Coverage Results" MODIFIED="1718706292784" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
+    <SUITE FILE_PATH="coverage/QECthreshold$dataset.coverage" NAME="dataset Coverage Results" MODIFIED="1713520804422" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/NN" />
+    <SUITE FILE_PATH="coverage/QecVAE_for_Phase_Recognition$scratch.coverage" NAME="scratch Coverage Results" MODIFIED="1741418214611" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
+    <SUITE FILE_PATH="coverage/QECthreshold$mainCluster.coverage" NAME="mainCluster Coverage Results" MODIFIED="1721826027012" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
+    <SUITE FILE_PATH="coverage/QECthreshold$vision_transformer.coverage" NAME="vision-transformer Coverage Results" MODIFIED="1721034586589" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/nn/net" />
     <SUITE FILE_PATH="coverage/QECthreshold$train.coverage" NAME="train Coverage Results" MODIFIED="1726775869257" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/nn" />
     <SUITE FILE_PATH="coverage/QECthreshold$scratch.coverage" NAME="scratch Coverage Results" MODIFIED="1732010150933" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/QECthreshold$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1718113117258" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/QECthreshold$plotter.coverage" NAME="plotter Coverage Results" MODIFIED="1729170504561" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/nn/utils" />
+    <SUITE FILE_PATH="coverage/QecVAE_for_Phase_Recognition$main.coverage" NAME="main Coverage Results" MODIFIED="1743538787124" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />
     <SUITE FILE_PATH="coverage/QECthreshold$error_code.coverage" NAME="error_code Coverage Results" MODIFIED="1716920262545" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/error_code" />
     <SUITE FILE_PATH="coverage/QECthreshold$ising.coverage" NAME="ising Coverage Results" MODIFIED="1716976274755" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/nn/data" />
     <SUITE FILE_PATH="coverage/QECthreshold$testlab_depolarizing.coverage" NAME="testlab_depolarizing Coverage Results" MODIFIED="1727794789265" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/scripts" />

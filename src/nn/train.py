@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 
 def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Callable, epochs, batch_size,
-          dataset: Dataset, val_set: Dataset) -> nn.Module:
+          dataset: Dataset, val_set: Dataset, distance: int, b: float) -> nn.Module:
     """
     Trains a VAE model (based upon convolutions and linear layers) on syndrome measurement,
     :param model: VAE model
@@ -37,20 +37,24 @@ def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Ca
     # Writes training summary to external file
     writer = SummaryWriter('logs/train')
 
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-8)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-7)
 
     best_val_loss = float("inf")
 
-    k = 0.1
+    k = 0.09
+    '''
     if "skip" in model.name:
         b = 11
     else:
         b = 9
+    '''
+    # b = 6.5
     counter = 0
 
     for e in range(epochs):
-        beta = (1 + np.exp(-k * e + b))
-        # beta = 50000
+        # beta = (50 + np.exp(-k * e + b))
+        beta = b * distance**2 * batch_size  # 0.01 slightly more latent space
+        # d=25: 0.01 -> latent space, 0.05 -> reconstruction error
         avg_loss = 0
         num_batches = 0
 
@@ -100,9 +104,9 @@ def train(model: nn.Module, init_optimizer: Callable[[Any], Optimizer], loss: Ca
             avg_val_loss /= num_batches
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
-                model.save()
+            model.save()
 
-            scheduler.step(avg_val_loss)
+            scheduler.step()
             print(scheduler.get_last_lr())
             if scheduler.get_last_lr()[0] < 2e-8:
                 counter += 1

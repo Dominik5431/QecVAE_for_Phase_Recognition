@@ -78,13 +78,13 @@ class Decoder(nn.Module):
         # self.deconv3_1 = nn.ConvTranspose2d(20, 10, kernel_size=2, stride=1, padding=1, bias=True)
 
         self.bn2 = nn.BatchNorm2d(d_conv_2(distance))
-        self.upsampling1 = nn.UpsamplingNearest2d(scale_factor=2)
+        self.upsampling1 = nn.ConvTranspose2d(d_conv_2(distance), d_conv_2(distance), 4, 2, 1, bias=True, groups=d_conv_2(distance))  # nn.UpsamplingNearest2d(scale_factor=2)
         self.deconv2_2 = nn.ConvTranspose2d(d_conv_2(distance), d_conv_2(distance), kernel_size=2, stride=1, padding=1,
                                             bias=True)
         self.deconv2_1 = nn.ConvTranspose2d(d_conv_2(distance), d_conv_1(distance), kernel_size=3, stride=1, padding=1,
                                             bias=True)
         self.bn1 = nn.BatchNorm2d(d_conv_1(distance))
-        self.upsampling2 = nn.UpsamplingNearest2d(scale_factor=2)
+        self.upsampling2 = nn.ConvTranspose2d(d_conv_1(distance), d_conv_1(distance), 4, 2, 1, bias=True, groups=d_conv_1(distance))  # nn.UpsamplingNearest2d(scale_factor=2)
         self.deconv1_2 = nn.ConvTranspose2d(d_conv_1(distance), d_conv_1(distance), kernel_size=2, stride=1, padding=1,
                                             bias=True)
         self.deconv1_1 = nn.ConvTranspose2d(d_conv_1(distance), channels, kernel_size=3, stride=1, padding=1, bias=True)

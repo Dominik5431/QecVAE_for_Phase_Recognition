@@ -125,7 +125,8 @@ class VariationalEncoder(nn.Module):
         z_mean = self.fc_mean(x)
 
         z_log_var = self.fc_log_var(x)
-        z = z_mean + torch.exp(0.5 * z_log_var) * self.N.sample(z_mean.shape).to(self.device)
+        noise = self.N.sample(z_mean.shape).to(self.device)
+        z = z_mean + torch.exp(0.5 * z_log_var) * noise
         return z_mean, z_log_var, z, None
 
 

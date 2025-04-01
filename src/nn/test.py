@@ -19,18 +19,23 @@ def test_model_reconstruction_error(model: nn.Module, dataset: QECDataset,
     # no KL divergence loss when evaluating reconstruction error!
 
     device = torch.device('mps') if torch.backends.mps.is_available() else torch.device('cpu')
-    model = model.double().to(device)
+    model = model.to(device)
     model.eval()
 
     test_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
     with torch.no_grad():  # not necessary, but improves performance since no gradients are computed
         loss = 0
         for (batch_idx, batch) in enumerate(test_loader):
-            output, mean, log_var = model.forward(batch[0].to(device))
+            if len(batch) == 3:
+                output, mean, log_var = model.forward([batch[0].to(device), batch[1].to(device)])
+                flips = batch[2]
+            else:
+                output, mean, log_var = model.forward(batch[0].to(device))
+                flips = batch[1]
             loss += loss_func(output, batch[0].to(
                 device))  # default reduction='mean' for MSELoss --> reduction mean: takes average over whole batch
             loss = torch.mean(loss, dim=[1, 2, 3])
-    return torch.mean(loss), torch.var(loss)
+    return loss, flips
 
 
 def test_model_latent_space(model: VariationalAutoencoder, dataset: Type[QECDataset]):
